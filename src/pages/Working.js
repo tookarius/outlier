@@ -1,43 +1,20 @@
+// src/pages/Working.js
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import confetti from 'canvas-confetti';
 import { Clock, Upload, CheckCircle, ArrowLeft, Play, Pause, ChevronRight, AlertCircle, Send } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-const questionSets = {
-  Translation: [
-    { id: 't1', type: 'text', question: 'Translate the following marketing slogan into Spanish (keep tone professional and catchy): "Empower Your Future with AI-Powered Learning"', required: true },
-    { id: 't2', type: 'text', question: 'Now translate this emotional tagline: "Every Child Deserves a Chance to Dream Big"', required: true },
-    { id: 't3', type: 'opinion', question: 'Which version sounds more natural to a native speaker?', options: ['Version A (formal)', 'Version B (conversational)', 'Both equal'], required: true },
-    { id: 't4', type: 'file', question: 'Upload your final translated document (PDF or DOCX)', acceptedFormats: '.pdf,.docx', required: true }
-  ],
-  'Content Writing': [
-    { id: 'cw1', type: 'text', question: 'Write a 200-word product description for a "Smart AI Coffee Maker" that learns your taste.', required: true },
-    { id: 'cw2', type: 'text', question: 'Write 3 catchy headlines for a blog post: "How AI is Changing Morning Routines"', required: true },
-    { id: 'cw3', type: 'opinion', question: 'Best tone for tech product descriptions?', options: ['Playful & Fun', 'Professional & Technical', 'Emotional & Relatable'], required: true },
-    { id: 'cw4', type: 'file', question: 'Upload your full content draft (Google Doc link or PDF)', acceptedFormats: '.pdf,.docx', required: true }
-  ],
-  'Data Labeling': [
-    { id: 'dl1', type: 'opinion', question: 'Does this image show a "pedestrian crossing" or "no crossing"?', options: ['Pedestrian Crossing', 'No Crossing', 'Unclear'], required: true },
-    { id: 'dl2', type: 'opinion', question: 'How many vehicles are visible?', options: ['0', '1-3', '4-10', '10+'], required: true },
-    { id: 'dl3', type: 'text', question: 'Describe any safety hazards you see (e.g. jaywalking, double parking)', required: true },
-    { id: 'dl4', type: 'file', question: 'Upload labeled screenshot with boxes (use any tool)', acceptedFormats: 'image/*', required: true }
-  ],
-  'Image Classification': [
-    { id: 'ic1', type: 'opinion', question: 'What emotion is the main person showing?', options: ['Happy', 'Sad', 'Angry', 'Surprised', 'Neutral'], required: true },
-    { id: 'ic2', type: 'opinion', question: 'Is this a family gathering?', options: ['Yes, definitely', 'Maybe', 'No'], required: true },
-    { id: 'ic3', type: 'text', question: 'Describe the relationship between people (e.g. parents + kids, friends, couple)', required: true },
-    { id: 'ic4', type: 'file', question: 'Upload image with emotion labels marked', acceptedFormats: 'image/*', required: true }
-  ]
-};
+import availableTasks from '../data/availableTasks'; // Import tasks
 
 const Working = () => {
-  const location = useLocation();
+  const { taskId } = useParams(); // Get task ID from URL
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const task = location.state?.task;
+
+  // Find the task by ID
+  const task = availableTasks.find(t => t.id === taskId);
 
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(true);
@@ -49,17 +26,32 @@ const Working = () => {
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
 
-  const questions = task?.questions || questionSets[task?.category] || questionSets.Translation;
+  // Use task.questions directly
+  const questions = task?.questions || [];
 
   useEffect(() => {
-    if (!task || !currentUser) {
-      toast.error('No task selected');
+    if (!taskId) {
+      toast.error('No task ID provided');
       navigate('/dashboard');
       return;
     }
-    setLoading(false);
-  }, [task, currentUser, navigate]);
 
+    if (!task) {
+      toast.error('Task not found');
+      navigate('/dashboard');
+      return;
+    }
+
+    if (!currentUser) {
+      toast.error('Please log in to continue');
+      navigate('/login');
+      return;
+    }
+
+    setLoading(false);
+  }, [taskId, task, currentUser, navigate]);
+
+  // Timer
   useEffect(() => {
     if (!isActive) return;
     const interval = setInterval(() => setSeconds(s => s + 1), 1000);
@@ -98,7 +90,6 @@ const Working = () => {
     return answers[q.id]?.toString().trim().length > 0;
   };
 
-  // PROGRESS UPDATES IMMEDIATELY WHEN ANSWERED
   const getProgress = () => {
     const answered = questions.filter(isQuestionAnswered).length;
     return Math.round((answered / questions.length) * 100);
@@ -109,7 +100,6 @@ const Working = () => {
   const handleNext = () => {
     if (canProceedToNext()) {
       setCurrentQuestion(p => p + 1);
-      // Optional: small celebration when question is answered
       if (getProgress() === 100) {
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
       }
@@ -120,7 +110,6 @@ const Working = () => {
 
   const handlePrevious = () => setCurrentQuestion(p => Math.max(0, p - 1));
 
-  // SUBMIT FOR REVIEW (NO PAYMENT HERE)
   const handleSubmit = async () => {
     const missing = questions.filter(q => q.required && !isQuestionAnswered(q));
     if (missing.length > 0) {
@@ -129,37 +118,33 @@ const Working = () => {
     }
 
     setUploading(true);
-
     try {
-      // Update local myTasks → status: completed
+      // Save to localStorage as "completed"
       const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
       const updatedTasks = savedTasks.map(t =>
-        t.id.includes(task.id) && t.status === 'in-progress'
+        t.id === task.id && t.status === 'in-progress'
           ? { ...t, status: 'completed', completedAt: new Date(), approvalScheduled: Date.now() + (Math.random() * 240000 + 60000) }
           : t
       );
+
+      // If not in myTasks, add it
+      if (!savedTasks.some(t => t.id === task.id)) {
+        updatedTasks.push({
+          ...task,
+          status: 'completed',
+          startedAt: new Date(Date.now() - seconds * 1000),
+          completedAt: new Date(),
+          approvalScheduled: Date.now() + (Math.random() * 240000 + 60000)
+        });
+      }
+
       localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updatedTasks));
 
-      // CELEBRATE COMPLETION (NOT PAYMENT)
-      confetti({
-        particleCount: 500,
-        spread: 100,
-        origin: { y: 0.6 }
-      });
+      confetti({ particleCount: 500, spread: 100, origin: { y: 0.6 } });
+      toast.success('Task submitted for review!', { icon: <Send className="w-6 h-6 text-blue-400" />, autoClose: 5000 });
+      toast.info('You’ll be paid automatically in 1–5 minutes after approval', { autoClose: 7000 });
 
-      toast.success('Task submitted for review!', {
-        icon: <Send className="w-6 h-6 text-blue-400" />,
-        autoClose: 5000
-      });
-
-      toast.info('You’ll be paid automatically in 1–5 minutes after approval', {
-        autoClose: 7000
-      });
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 3000);
-
+      setTimeout(() => navigate('/dashboard'), 3000);
     } catch (err) {
       console.error(err);
       toast.error('Submission failed. Try again.');
@@ -188,6 +173,7 @@ const Working = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* === HEADER === */}
       <header className="bg-white/10 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 shadow-2xl">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <button
@@ -206,6 +192,7 @@ const Working = () => {
         </div>
       </header>
 
+      {/* === MAIN CONTENT === */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-amber-400/30 p-8 mb-8 shadow-2xl">
           <div className="flex justify-between items-start mb-6">
@@ -235,6 +222,7 @@ const Working = () => {
         </div>
 
         <div className="grid lg:grid-cols-4 gap-8">
+          {/* === QUESTION NAV === */}
           <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-amber-400/20 p-6 space-y-3">
             <h3 className="font-bold text-amber-300 mb-4">Questions</h3>
             {questions.map((q, i) => (
@@ -257,6 +245,7 @@ const Working = () => {
             ))}
           </div>
 
+          {/* === QUESTION CONTENT === */}
           <div className="lg:col-span-3 space-y-8">
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-amber-400/20 p-10">
               <div className="flex items-start justify-between mb-8">
@@ -350,6 +339,7 @@ const Working = () => {
               )}
             </div>
 
+            {/* === NAV BUTTONS === */}
             <div className="flex justify-between">
               <button
                 onClick={handlePrevious}

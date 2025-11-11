@@ -19,7 +19,7 @@ function Footer() {
           {/* Brand + Trust */}
           <div className="space-y-6">
             <div className="flex items-center space-x-3">
-              <div className="text-3xl font-black text-amber-400">Train2Earn</div>
+              <div className="text-3xl font-black text-amber-400">Outlier AI</div>
               <span className="text-xs bg-amber-400/20 px-3 py-1 rounded-full">by ComoAI Labs</span>
             </div>
             <p className="text-gray-300 leading-relaxed">
@@ -53,7 +53,7 @@ function Footer() {
               <li><Link to="/success-stories" className="hover:text-amber-400 transition">Success Stories</Link></li>
               <li>
                 <a 
-                  href="https://discord.gg/Train2Earn" 
+                  href="https://discord.gg/Outlier AI" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="hover:text-amber-400 transition"
@@ -79,7 +79,7 @@ function Footer() {
           <div>
             <h4 className="text-lg font-bold mb-5 text-amber-400">Support</h4>
             <ul className="space-y-3 text-gray-300">
-              <li><a href="mailto:support@Train2Earn.com" className="hover:text-amber-400 transition">support@Train2Earn.com</a></li>
+              <li><a href="mailto:support@Outlier AI.com" className="hover:text-amber-400 transition">support@Outlier AI.com</a></li>
               <li><Link to="/contact" className="hover:text-amber-400 transition">Contact Us</Link></li>
               <li><Link to="/terms" className="hover:text-amber-400 transition">Terms of Service</Link></li>
               <li><Link to="/privacy" className="hover:text-amber-400 transition">Privacy Policy</Link></li>
@@ -89,12 +89,12 @@ function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
-          <p>© 2025 Train2Earn by ComoAI Labs. All rights reserved.</p>
+          <p>© 2025 Outlier AI by ComoAI Labs. All rights reserved.</p>
           <div className="flex gap-6 mt-4 md:mt-0">
             {/* Fixed: Use button + real links or proper href */}
-            <a href="https://twitter.com/Train2Earn" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">Twitter</a>
-            <a href="https://linkedin.com/company/train2earn" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">LinkedIn</a>
-            <a href="https://youtube.com/@Train2Earn" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">YouTube</a>
+            <a href="https://twitter.com/Outlier AI" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">Twitter</a>
+            <a href="https://linkedin.com/company/Outlier AI" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">LinkedIn</a>
+            <a href="https://youtube.com/@Outlier AI" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 transition">YouTube</a>
           </div>
         </div>
       </div>

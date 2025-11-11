@@ -36,7 +36,7 @@ function LandingPage() {
         {/* Nav */}
         <nav className="max-w-7xl mx-auto px-4 py-5 flex justify-between items-center">
           <Link to="/" className="flex items-center space-x-3">
-            <div className="text-3xl font-black text-amber-400">Train2Earn</div>
+            <div className="text-3xl font-black text-amber-400">Outlier AI</div>
             <span className="hidden sm:inline text-xs bg-amber-400/20 text-amber-300 px-2 py-1 rounded">by ComoAI Labs</span>
           </Link>
 
@@ -93,7 +93,7 @@ function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/signup" className="bg-amber-400 text-slate-900 font-black text-2xl px-12 py-6 rounded-full hover:bg-amber-300 transform hover:scale-105 transition shadow-2xl">
-                  Yes! Join Train2Earn – 100% Free
+                  Yes! Join Outlier AI – 100% Free
                 </Link>
                 <button onClick={() => scrollToSection('tasks')} className="text-white border-2 border-white/50 px-10 py-6 rounded-full text-xl hover:bg-white/10 transition">
                   See All Jobs →
@@ -112,11 +112,11 @@ function LandingPage() {
       {/* ==================== MAIN CONTENT (starts below header) ==================== */}
       <main className="pt-32"> {/* This prevents overlap! */}
 
-{/* ==================== WHY CHOOSE Train2Earn – Professional SVG Icons ==================== */}
+{/* ==================== WHY CHOOSE Outlier AI – Professional SVG Icons ==================== */}
 <section className="py-24 bg-gray-50">
   <div className="max-w-7xl mx-auto px-4">
     <h2 className="text-4xl md:text-5xl font-black text-center mb-4 text-slate-800">
-      Why 50,000+ People Choose Train2Earn
+      Why 50,000+ People Choose Outlier AI
     </h2>
     <p className="text-xl text-center text-gray-600 mb-16">Real jobs. Real pay. Real freedom.</p>
 
@@ -310,7 +310,7 @@ function LandingPage() {
           <div className="max-w-4xl mx-auto text-center px-4">
             <h2 className="text-5xl font-bold text-slate-900 mb-6">Earn $500–$2,000/month From Home</h2>
             <Link to="/signup" className="bg-slate-900 text-white font-black text-2xl px-16 py-6 rounded-full hover:bg-slate-800 inline-block">
-              Join Train2Earn Now – Free Forever
+              Join Outlier AI Now – Free Forever
             </Link>
           </div>
         </section>

@@ -8,6 +8,7 @@ import UserDashboard from './pages/UserDashboard';
 import Working from './pages/Working';
 import WithdrawPage from './pages/WithdrawPage';
 
+
 function App() {
   return (
     <AuthProvider>
@@ -20,6 +21,7 @@ function App() {
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/working" element={<Working />} />
             <Route path="/withdraw" element={<WithdrawPage />} />
+            <Route path="/working/:taskId" element={<Working />} />
           </Routes>
         </div>
       </Router>

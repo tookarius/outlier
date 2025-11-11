@@ -118,7 +118,7 @@ function SignUpPage() {
 
       await Promise.race([signupProcess(), timeoutPromise]);
 
-      toast.success('Account created! Welcome to Train2Earn!');
+      toast.success('Account created! Welcome to Outlier AI!');
       navigate('/dashboard');
     } catch (err) {
       console.error('Signup failed:', err.code, err.message);
@@ -154,7 +154,7 @@ function SignUpPage() {
         {/* Left Side – Hero */}
         <div className="text-white space-y-8">
           <div className="flex items-center space-x-3">
-            <div className="text-4xl font-black text-amber-400">Train2Earn</div>
+            <div className="text-4xl font-black text-amber-400">Outlier AI</div>
             <span className="text-sm bg-amber-400/20 px-3 py-1 rounded-full">by ComoAI Labs</span>
           </div>
 
