@@ -125,7 +125,7 @@ function SignUpPage() {
       let msg = 'Failed to create account. Please try again.';
 
       if (err.message === 'Request timeout') {
-        msg = 'Connection timeout. Check your internet and retry.';
+        msg = 'Connection timeout. Account created! Login to Outlier AI or Retry.';
       } else if (err.code === 'auth/email-already-in-use') {
         msg = 'Email already registered. Try signing in.';
       } else if (err.code === 'auth/invalid-email') {

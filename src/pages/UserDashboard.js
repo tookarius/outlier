@@ -160,7 +160,7 @@ const UserDashboard = () => {
       const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
       const lastReset = data.lastTaskResetDate?.toDate?.().toLocaleDateString('en-CA');
       const isVIP = data.isVIP || false;
-      const maxTasks = isVIP ? VIP_CONFIG[data.vipTier]?.dailyTasks || 2 : 2;
+      const maxTasks = isVIP ? VIP_CONFIG[data.vipTier]?.dailyTasks || 1 : 1;
 
       if (lastReset !== today) {
         updateDoc(doc(db, 'users', currentUser.uid), {
@@ -763,93 +763,101 @@ const UserDashboard = () => {
         </section>
       </main>
 
-      {/* VIP Modal */}
-      {showVIPModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-8 max-w-2xl w-full shadow-2xl border border-amber-400/20">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-slate-800">Upgrade to VIP</h2>
-              <button onClick={() => setShowVIPModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      
+{/* VIP Modal */}
+{showVIPModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
+    <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-5 md:p-8 max-w-lg w-full shadow-2xl border border-amber-400/20 overflow-y-auto max-h-[90vh]">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl md:text-2xl font-black text-slate-800">Upgrade to VIP</h2>
+        <button onClick={() => setShowVIPModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-            <p className="text-slate-600 mb-6">
-              Choose your tier and enter your M-Pesa number to receive an STK push.
-            </p>
+      <p className="text-slate-600 text-sm md:text-base mb-5">
+        Choose your tier and enter your M-Pesa number to receive an STK push.
+      </p>
 
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              {Object.entries(VIP_CONFIG).map(([tier, config]) => (
-                <label
-                  key={tier}
-                  className={`cursor-pointer p-5 rounded-2xl border-2 transition-all ${
-                    selectedVIP === tier
-                      ? 'border-amber-500 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg'
-                      : 'border-slate-300 bg-white hover:border-slate-400'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="vipTier"
-                    value={tier}
-                    checked={selectedVIP === tier}
-                    onChange={(e) => setSelectedVIP(e.target.value)}
-                    className="sr-only"
-                  />
-                  <div className="text-center">
-                    <Crown className={`w-8 h-8 mx-auto mb-2 ${selectedVIP === tier ? 'text-white' : 'text-amber-500'}`} />
-                    <h3 className={`font-black text-lg ${selectedVIP === tier ? 'text-white' : 'text-slate-800'}`}>
-                      {tier} VIP
-                    </h3>
-                    <p className={`text-3xl font-black my-2 ${selectedVIP === tier ? 'text-white' : 'text-slate-900'}`}>
-                      ${config.priceUSD}
-                    </p>
-                    <p className={`text-sm ${selectedVIP === tier ? 'text-white/90' : 'text-slate-500'}`}>
-                      {formatKES(config.priceUSD)}
-                    </p>
-                    <p className={`mt-3 font-bold ${selectedVIP === tier ? 'text-white' : 'text-green-600'}`}>
-                      {config.dailyTasks} Tasks/Day
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-700 mb-2">M-Pesa Number</label>
-              <input
-                type="tel"
-                value={mpesaNumber}
-                onChange={(e) => setMpesaNumber(e.target.value)}
-                placeholder="07..., 01..., or +254712345678"
-                className="w-full px-4 py-3 rounded-xl border-2 border-green-400 focus:ring-2 focus:ring-green-400/20 transition"
-              />
-            </div>
-
-            <button
-              onClick={handleRealVIPUpgrade}
-              disabled={isProcessing || !selectedVIP || !isValidMpesaNumber(mpesaNumber)}
-              className={`w-full py-4 rounded-xl font-black text-lg transition-all flex items-center justify-center gap-2 ${
-                selectedVIP && isValidMpesaNumber(mpesaNumber)
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-xl transform hover:scale-105'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              } ${isProcessing ? 'opacity-70' : ''}`}
+      {/* VIP Tiers */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        {Object.entries(VIP_CONFIG).map(([tier, config]) => {
+          const isSelected = selectedVIP === tier;
+          const isRecommended = tier === "Silver"; // Recommended tier
+          return (
+            <label
+              key={tier}
+              className={`relative cursor-pointer p-4 rounded-xl border-2 transition-all flex flex-col items-center ${
+                isSelected
+                  ? 'border-amber-500 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md'
+                  : 'border-slate-300 bg-white hover:border-slate-400'
+              }`}
             >
-              {isProcessing ? (
-                <>Processing Payment…</>
-              ) : (
-                <>
-                  Pay with M-Pesa <Smartphone className="w-5 h-5" />
-                </>
-              )}
-            </button>
+              <input
+                type="radio"
+                name="vipTier"
+                value={tier}
+                checked={isSelected}
+                onChange={(e) => setSelectedVIP(e.target.value)}
+                className="sr-only"
+              />
 
-            <p className="text-xs text-slate-500 text-center mt-4">
-              You'll receive an STK push. Enter your PIN to complete.
-            </p>
-          </div>
-        </div>
-      )}
+              {isRecommended && (
+                <span className="absolute -top-3 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                  ⭐ Recommended
+                </span>
+              )}
+
+              <Crown className={`w-7 h-7 mb-2 ${isSelected ? 'text-white' : 'text-amber-500'}`} />
+              <h3 className={`font-black text-base ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                {tier} VIP
+              </h3>
+              <p className={`text-2xl font-black my-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                ${config.priceUSD}
+              </p>
+              <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>
+                {formatKES(config.priceUSD)}
+              </p>
+              <p className={`mt-2 text-sm font-bold ${isSelected ? 'text-white' : 'text-green-600'}`}>
+                {config.dailyTasks} Tasks/Day
+              </p>
+            </label>
+          );
+        })}
+      </div>
+
+      {/* M-Pesa Input */}
+      <div className="mb-5">
+        <label className="block text-sm font-bold text-slate-700 mb-1">M-Pesa Number</label>
+        <input
+          type="tel"
+          value={mpesaNumber}
+          onChange={(e) => setMpesaNumber(e.target.value)}
+          placeholder="07..., 01..., or +254712345678"
+          className="w-full px-3 py-2.5 rounded-lg border-2 border-green-400 focus:ring-2 focus:ring-green-400/20 text-sm"
+        />
+      </div>
+
+      {/* Payment Button */}
+      <button
+        onClick={handleRealVIPUpgrade}
+        disabled={isProcessing || !selectedVIP || !isValidMpesaNumber(mpesaNumber)}
+        className={`w-full py-3 rounded-lg font-black text-base flex items-center justify-center gap-2 transition-all ${
+          selectedVIP && isValidMpesaNumber(mpesaNumber)
+            ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-lg hover:scale-[1.02]'
+            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+        } ${isProcessing ? 'opacity-70' : ''}`}
+      >
+        {isProcessing ? 'Processing Payment…' : <>Pay with M-Pesa <Smartphone className="w-4 h-4" /></>}
+      </button>
+
+      <p className="text-[11px] text-slate-500 text-center mt-3">
+        You'll receive an STK push. Enter your PIN to complete.
+      </p>
+    </div>
+  </div>
+)}
 
       {/* Notification Panel */}
       {showNotifications && (
