@@ -36,16 +36,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import availableTasks from '../data/availableTasks';
 import { useAuth } from '../context/AuthContext';
 
-const EXCHANGE_RATE = 129.55;
+const EXCHANGE_RATE = 129.00;
 const formatKES = (usd) =>
   `Ksh.${(usd * EXCHANGE_RATE)
     .toFixed(2)
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 const VIP_CONFIG = {
-  Bronze: { priceUSD: 10, dailyTasks: 10 },
-  Silver: { priceUSD: 20, dailyTasks: 20 },
-  Gold: { priceUSD: 50, dailyTasks: 50 },
+  Bronze: { priceUSD: 1, dailyTasks: 8 },
+  Silver: { priceUSD: 4, dailyTasks: 20 },
+  Gold: { priceUSD: 10, dailyTasks: 50 },
 };
 
 const getNextThursday = () => {
@@ -111,7 +111,7 @@ const UserDashboard = () => {
   const navigate = useNavigate();
 
   const [userProfile, setUserProfile] = useState(null);
-  const [dailyTasksRemaining, setDailyTasksRemaining] = useState(2);
+  const [dailyTasksRemaining, setDailyTasksRemaining] = useState(1);
   const [myTasks, setMyTasks] = useState([]);
   const [showVIPModal, setShowVIPModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -223,7 +223,7 @@ const UserDashboard = () => {
             });
 
             addNotification(
-              `Task: You have been paid $${task.paymentAmount.toFixed(
+              `You have been paid $${task.paymentAmount.toFixed(
                 2
               )}! Task "${task.title}" has been approved successfully.`
             );
@@ -319,7 +319,7 @@ const UserDashboard = () => {
 
     setIsProcessing(true);
     const clientReference = `VIP_${currentUser.uid}_${Date.now()}`;
-    const amount = VIP_CONFIG[selectedVIP].priceUSD;
+    const amount = VIP_CONFIG[selectedVIP].priceUSD * 129;
     let poll = null;
 
     try {
