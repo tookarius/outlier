@@ -45,7 +45,7 @@ const formatKES = (usd) =>
 const VIP_CONFIG = {
   Bronze: { priceUSD: 1, dailyTasks: 8 },
   Silver: { priceUSD: 4, dailyTasks: 20 },
-  Gold: { priceUSD: 10, dailyTasks: 50 },
+  Gold: { priceUSD: 10, dailyTasks: 52 },
 };
 
 const getNextThursday = () => {
@@ -763,10 +763,12 @@ const UserDashboard = () => {
         </section>
       </main>
 
+
 {/* VIP Modal */}
 {showVIPModal && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
     <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-5 md:p-8 max-w-lg w-full shadow-2xl border border-amber-400/20 overflow-y-auto max-h-[90vh]">
+
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl md:text-2xl font-black text-slate-800">Upgrade to VIP</h2>
@@ -775,9 +777,14 @@ const UserDashboard = () => {
         </button>
       </div>
 
-      <p className="text-slate-600 text-sm md:text-base mb-5">
-        Choose your tier and enter your M-Pesa number to receive an STK push.
-      </p>
+ <ul className="text-slate-600 text-sm md:text-base mb-5 list-disc list-inside space-y-1">
+  <li>Maximize your earning potential every day</li>
+  <li>Unlock more daily tasks for faster progress</li>
+  <li>Receive priority processing and support</li>
+  <li>Enjoy faster and smoother withdrawals</li>
+  <li>Upgrade instantly and start earning more today</li>
+</ul>
+
 
       {/* VIP Tiers */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
@@ -848,15 +855,16 @@ const UserDashboard = () => {
             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
         } ${isProcessing ? 'opacity-70' : ''}`}
       >
-        {isProcessing ? 'Processing Payment…' : <>Pay with M-Pesa <Smartphone className="w-4 h-4" /></>}
+        {isProcessing ? 'Processing your upgrade…' : <>Pay with M-Pesa <Smartphone className="w-4 h-4" /></>}
       </button>
 
       <p className="text-[11px] text-slate-500 text-center mt-3">
-        You'll receive an STK push. Enter your PIN to complete.
+        You’ll receive an STK Push shortly. Enter your PIN to confirm the payment.
       </p>
     </div>
   </div>
 )}
+
 
       {/* Notification Panel */}
       {showNotifications && (
