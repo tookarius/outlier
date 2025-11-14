@@ -231,46 +231,59 @@ const WithdrawPage = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-start mb-5">
-              <h3 className="text-xl font-bold text-slate-900">Cannot Withdraw</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Today is Thursday</p>
-                  <p className="text-xs text-slate-500">{eligibility.isThursday ? 'Allowed' : 'Only Thursdays'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Greater than or equal to $10.20 after fee</p>
-                  <p className="text-xs text-slate-500">You entered ${amount || '0'} • Balance: ${balance.toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Greater than or equal to 15 tasks completed</p>
-                  <p className="text-xs text-slate-500">You have {profile.completedTasks || 0}</p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowModal(false)}
-              className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
-            >
-              Close
-            </button>
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="flex justify-between items-start mb-5">
+        <h3 className="text-xl font-bold text-slate-900">Withdrawal Not Available</h3>
+        <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+          <div>
+            <p className="font-medium">Withdrawal Day Restriction</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.isThursday
+                ? 'Today is Thursday – withdrawals are permitted.'
+                : 'Withdrawals are only allowed on Thursdays.'}
+            </p>
           </div>
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+          <div>
+            <p className="font-medium">Minimum Withdrawal Amount</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.minAmount
+                ? 'Amount meets the minimum requirement.'
+                : `The entered amount ($${amount || '0'}) is below the minimum of $10.20 after fees. Current balance: $${balance.toFixed(2)}.`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+          <div>
+            <p className="font-medium">Task Completion Requirement</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.minTasks
+                ? 'You have completed enough tasks to withdraw.'
+                : `You need at least 15 completed tasks. You have completed ${profile.completedTasks || 0}.`}
+            </p>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => setShowModal(false)}
+        className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
+
 
       {/* Main UI */}
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 py-6 px-4">

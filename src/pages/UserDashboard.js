@@ -160,12 +160,12 @@ const UserDashboard = () => {
       const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
       const lastReset = data.lastTaskResetDate?.toDate?.().toLocaleDateString('en-CA');
       const isVIP = data.isVIP || false;
-      const maxTasks = isVIP ? VIP_CONFIG[data.vipTier]?.dailyTasks || 1 : 1;
+      const maxTasks = isVIP ? VIP_CONFIG[data.vipTier]?.dailyTasks || 2 : 2;
 
       if (lastReset !== today) {
         updateDoc(doc(db, 'users', currentUser.uid), {
           dailyTasksRemaining: maxTasks,
-          lastTaskResetDate: serverTimestamp(),
+        // lastTaskResetDate: serverTimestamp(),
         });
         setDailyTasksRemaining(maxTasks);
       } else {
@@ -763,7 +763,6 @@ const UserDashboard = () => {
         </section>
       </main>
 
-      
 {/* VIP Modal */}
 {showVIPModal && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 md:p-4">
