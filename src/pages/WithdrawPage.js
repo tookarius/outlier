@@ -12,6 +12,8 @@ import {
   where,
   orderBy,
   limit,
+  updateDoc,
+  increment,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast, ToastContainer } from 'react-toastify';
@@ -91,7 +93,6 @@ const WithdrawPage = () => {
     );
   }, []);
 
-  // ... rest of your useEffect and logic (unchanged)
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
@@ -105,7 +106,8 @@ const WithdrawPage = () => {
         if (snap.exists()) {
           const data = snap.data();
           setProfile(data);
-          setBalance(data.balance || 0);
+          // Use currentbalance instead of balance
+          setBalance(data.currentbalance || 0);
           setPhone(data.phone || '');
         }
       });
@@ -137,7 +139,8 @@ const WithdrawPage = () => {
 
   useEffect(() => {
     if (!profile) return;
-    const tasksDone = profile.completedTasks || 0;
+    // Use ApprovedTasks instead of completedTasks
+    const tasksDone = profile.ApprovedTasks || 0;
     const amountOk = balance >= MIN_AFTER_FEE_USD;
     setEligibility({
       isThursday: isThursday(),
@@ -152,7 +155,8 @@ const WithdrawPage = () => {
     if (isNaN(usd) || usd <= 0) return toast.error('Enter valid amount');
 
     const isThu = isThursday();
-    const tasksDone = profile?.completedTasks || 0;
+    // Use ApprovedTasks instead of completedTasks
+    const tasksDone = profile?.ApprovedTasks || 0;
     const amountValid = usd >= MIN_AFTER_FEE_USD && balance >= usd;
     const tasksValid = tasksDone >= MIN_COMPLETED_TASKS;
 
@@ -182,7 +186,7 @@ const WithdrawPage = () => {
       const withdrawalId = `${user.uid}_${Date.now()}`;
       const payload = {
         userId: user.uid,
-        name: user.displayName || 'User',
+        name: profile.name || user.displayName || 'User',
         email: user.email,
         amount: usd,
         method,
@@ -194,7 +198,14 @@ const WithdrawPage = () => {
       if (method === 'paypal') payload.paypalEmail = paypalEmail;
       if (method === 'bank') payload.bankDetails = bankDetails;
 
+      // Create withdrawal request
       await setDoc(doc(db, 'withdrawals', withdrawalId), payload);
+
+      // Deduct from user's currentbalance
+      await updateDoc(doc(db, 'users', user.uid), {
+        currentbalance: increment(-usd),
+      });
+
       toast.success('Withdrawal requested! Paid within 24 hrs.');
       resetForm();
     } catch (err) {
@@ -231,59 +242,58 @@ const WithdrawPage = () => {
 
       {/* Modal */}
       {showModal && (
-  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-      <div className="flex justify-between items-start mb-5">
-        <h3 className="text-xl font-bold text-slate-900">Withdrawal Not Available</h3>
-        <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-          <div>
-            <p className="font-medium">Withdrawal Day Restriction</p>
-            <p className="text-xs text-slate-500">
-              {eligibility.isThursday
-                ? 'Today is Thursday – withdrawals are permitted.'
-                : 'Withdrawals are only allowed on Thursdays.'}
-            </p>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex justify-between items-start mb-5">
+              <h3 className="text-xl font-bold text-slate-900">Withdrawal Not Available</h3>
+              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+                <div>
+                  <p className="font-medium">Withdrawal Day Restriction</p>
+                  <p className="text-xs text-slate-500">
+                    {eligibility.isThursday
+                      ? 'Today is Thursday – withdrawals are permitted.'
+                      : 'Withdrawals are only allowed on Thursdays.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+                <div>
+                  <p className="font-medium">Minimum Withdrawal Amount</p>
+                  <p className="text-xs text-slate-500">
+                    {eligibility.minAmount
+                      ? 'Amount meets the minimum requirement.'
+                      : `The entered amount ($${amount || '0'}) is below the minimum of $10.20 after fees. Current balance: $${balance.toFixed(2)}.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
+                <div>
+                  <p className="font-medium">Task Completion Requirement</p>
+                  <p className="text-xs text-slate-500">
+                    {eligibility.minTasks
+                      ? 'You have completed enough tasks to withdraw.'
+                      : `You need at least 15 completed tasks. You have completed ${profile.ApprovedTasks || 0}.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowModal(false)}
+              className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
+            >
+              Close
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-          <div>
-            <p className="font-medium">Minimum Withdrawal Amount</p>
-            <p className="text-xs text-slate-500">
-              {eligibility.minAmount
-                ? 'Amount meets the minimum requirement.'
-                : `The entered amount ($${amount || '0'}) is below the minimum of $10.20 after fees. Current balance: $${balance.toFixed(2)}.`}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-          <div>
-            <p className="font-medium">Task Completion Requirement</p>
-            <p className="text-xs text-slate-500">
-              {eligibility.minTasks
-                ? 'You have completed enough tasks to withdraw.'
-                : `You need at least 15 completed tasks. You have completed ${profile.completedTasks || 0}.`}
-            </p>
-          </div>
-        </div>
-      </div>
-      <button
-        onClick={() => setShowModal(false)}
-        className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
-      >
-        Close
-      </button>
-    </div>
-  </div>
-)}
-
+      )}
 
       {/* Main UI */}
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 py-6 px-4">
@@ -307,7 +317,6 @@ const WithdrawPage = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* ... rest of form (unchanged) ... */}
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Amount (USD) – Min $10.20 after fee

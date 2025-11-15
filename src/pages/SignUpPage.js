@@ -94,17 +94,28 @@ function SignUpPage() {
         const user = userCredential.user;
         console.log('Auth success! UID:', user.uid);
 
-        // Step 2: Minimal Firestore write
+        // Step 2: Create complete Firestore user document
         const role = email.trim() === 'workfromhome.onlinepay@gmail.com' ? 'admin' : 'user';
         const referralCode = generateReferralCode();
 
         await setDoc(doc(db, 'users', user.uid), {
+          userId: user.uid,
           createdAt: serverTimestamp(),
           email: email.trim().toLowerCase(),
           name: name.trim(),
           phone: phone.trim(),
           referralCode,
           role,
+          // Financial fields
+          currentbalance: 0,
+          thisMonthEarned: 0,
+          totalEarned: 0,
+          // Task tracking
+          ApprovedTasks: 0,
+          hasDoneOnboardingTask: false,
+          // VIP status
+          isVIP: false,
+          tier: "standard"
         });
 
         console.log('Firestore write success!');

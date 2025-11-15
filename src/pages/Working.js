@@ -6,10 +6,10 @@ import 'react-toastify/dist/ReactToastify.css';
 import confetti from 'canvas-confetti';
 import { Clock, Upload, CheckCircle, ArrowLeft, Play, Pause, ChevronRight, AlertCircle, Send } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import availableTasks from '../data/availableTasks'; // Import tasks
+import availableTasks from '../data/availableTasks';
 
 const Working = () => {
-  const { taskId } = useParams(); // Get task ID from URL
+  const { taskId } = useParams(); // Get base task ID from URL
   const navigate = useNavigate();
   const { currentUser } = useAuth();
 
@@ -24,6 +24,7 @@ const Working = () => {
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [myTaskInstance, setMyTaskInstance] = useState(null);
   const fileInputRef = useRef(null);
 
   // Use task.questions directly
@@ -46,6 +47,17 @@ const Working = () => {
       toast.error('Please log in to continue');
       navigate('/login');
       return;
+    }
+
+    // Load the user's specific instance of this task from localStorage
+    const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
+    const taskInstance = savedTasks.find(t => t.id.startsWith(taskId) && t.status === 'in-progress');
+    
+    if (taskInstance) {
+      setMyTaskInstance(taskInstance);
+      // Calculate elapsed time if task was started before
+      const elapsed = Math.floor((new Date() - new Date(taskInstance.startedAt)) / 1000);
+      setSeconds(elapsed);
     }
 
     setLoading(false);
@@ -119,30 +131,41 @@ const Working = () => {
 
     setUploading(true);
     try {
-      // Save to localStorage as "completed"
+      // Load existing tasks from localStorage
       const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
-      const updatedTasks = savedTasks.map(t =>
-        t.id === task.id && t.status === 'in-progress'
-          ? { ...t, status: 'completed', completedAt: new Date(), approvalScheduled: Date.now() + (Math.random() * 240000 + 60000) }
-          : t
-      );
+      
+      // Find the specific task instance (the one with full ID like "task1_timestamp")
+      const taskInstanceId = myTaskInstance?.id || `${taskId}_${Date.now()}`;
+      
+      // Update or create the task
+      const taskIndex = savedTasks.findIndex(t => t.id === taskInstanceId);
+      
+      const completedTask = {
+        id: taskInstanceId,
+        ...task,
+        status: 'completed',
+        startedAt: myTaskInstance?.startedAt || new Date(Date.now() - seconds * 1000),
+        completedAt: new Date(),
+        completedQuestions: questions.length,
+        totalQuestions: questions.length,
+        approvalScheduled: Date.now() + (Math.random() * 240000 + 60000), // 1-5 minutes
+        answers: answers, // Save answers for reference
+      };
 
-      // If not in myTasks, add it
-      if (!savedTasks.some(t => t.id === task.id)) {
-        updatedTasks.push({
-          ...task,
-          status: 'completed',
-          startedAt: new Date(Date.now() - seconds * 1000),
-          completedAt: new Date(),
-          approvalScheduled: Date.now() + (Math.random() * 240000 + 60000)
-        });
+      if (taskIndex >= 0) {
+        // Update existing task
+        savedTasks[taskIndex] = completedTask;
+      } else {
+        // Add new completed task
+        savedTasks.push(completedTask);
       }
 
-      localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updatedTasks));
+      // Save back to localStorage
+      localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(savedTasks));
 
       confetti({ particleCount: 500, spread: 100, origin: { y: 0.6 } });
       toast.success('Task submitted for review!', { icon: <Send className="w-6 h-6 text-blue-400" />, autoClose: 5000 });
-      toast.info('You’ll be paid automatically in 1–5 minutes after approval', { autoClose: 7000 });
+      toast.info('You will be paid automatically in 1-5 minutes after approval', { autoClose: 7000 });
 
       setTimeout(() => navigate('/dashboard'), 3000);
     } catch (err) {
@@ -156,6 +179,27 @@ const Working = () => {
   const toggleTimer = () => {
     setIsActive(!isActive);
     toast.info(isActive ? 'Timer paused' : 'Timer resumed');
+  };
+
+  const handleLeaveTask = () => {
+    if (window.confirm('Leave task? Your progress has been saved and you can continue later.')) {
+      // Save current progress to localStorage before leaving
+      if (myTaskInstance && currentUser) {
+        const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
+        const taskIndex = savedTasks.findIndex(t => t.id === myTaskInstance.id);
+        
+        if (taskIndex >= 0) {
+          // Update the task with current progress
+          savedTasks[taskIndex] = {
+            ...savedTasks[taskIndex],
+            completedQuestions: questions.filter(isQuestionAnswered).length,
+            lastUpdated: new Date(),
+          };
+          localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(savedTasks));
+        }
+      }
+      navigate('/dashboard');
+    }
   };
 
   if (loading || !task) {
@@ -177,7 +221,7 @@ const Working = () => {
       <header className="bg-white/10 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50 shadow-2xl">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <button
-            onClick={() => window.confirm('Leave task? Progress saved.') && navigate('/dashboard')}
+            onClick={handleLeaveTask}
             className="flex items-center gap-2 text-white hover:bg-white/10 px-4 py-2 rounded-xl transition"
           >
             <ArrowLeft className="w-5 h-5" /> Dashboard
@@ -344,7 +388,7 @@ const Working = () => {
               <button
                 onClick={handlePrevious}
                 disabled={currentQuestion === 0}
-                className="px-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-bold text-white disabled:opacity-50"
+                className="px-8 py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-bold text-white disabled:opacity-50 transition"
               >
                 Previous
               </button>
@@ -353,7 +397,7 @@ const Working = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={uploading || getProgress() < 100}
-                  className="px-10 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-3"
+                  className="px-10 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
                 >
                   {uploading ? 'Submitting...' : <>Submit for Review <Send className="w-6 h-6" /></>}
                 </button>
@@ -361,7 +405,7 @@ const Working = () => {
                 <button
                   onClick={handleNext}
                   disabled={!canProceedToNext()}
-                  className="px-10 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-black rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-3"
+                  className="px-10 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-black font-black rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
                 >
                   Next <ChevronRight className="w-6 h-6" />
                 </button>

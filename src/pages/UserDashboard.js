@@ -28,7 +28,8 @@ import {
   CheckCircle2,
   Lock,
   Bell,
-  User
+  User,
+  Star
 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import Confetti from 'react-confetti';
@@ -165,7 +166,7 @@ const UserDashboard = () => {
       if (lastReset !== today) {
         updateDoc(doc(db, 'users', currentUser.uid), {
           dailyTasksRemaining: maxTasks,
-        // lastTaskResetDate: serverTimestamp(),
+          // lastTaskResetDate: serverTimestamp(),
         });
         setDailyTasksRemaining(maxTasks);
       } else {
@@ -189,7 +190,7 @@ const UserDashboard = () => {
     }
   }, [myTasks, currentUser?.uid]);
 
-  // Auto-approval simulation
+  // Auto-approval simulation with onboarding detection
   useEffect(() => {
     if (!currentUser) return;
 
@@ -211,22 +212,33 @@ const UserDashboard = () => {
             task.approvedAt = new Date();
             changed = true;
 
+            // Check if this is the onboarding task (first task)
+            const isOnboardingTask = task.id.startsWith(availableTasks[0]?.id);
+
             updateDoc(doc(db, 'users', currentUser.uid), {
-              balance: increment(task.paymentAmount),
+              currentbalance: increment(task.paymentAmount),
               thisMonthEarned: increment(task.paymentAmount),
               totalEarned: increment(task.paymentAmount),
-              completedTasks: increment(1),
+              ApprovedTasks: increment(1),
+              // Mark onboarding as complete if this is the first task
+              ...(isOnboardingTask && { hasDoneOnboardingTask: true })
             });
 
             toast.success(`+$${task.paymentAmount.toFixed(2)} approved!`, {
               icon: <CheckCircle className="w-5 h-5 text-green-500" />,
             });
 
-            addNotification(
-              `You have been paid $${task.paymentAmount.toFixed(
-                2
-              )}! Task "${task.title}" has been approved successfully.`
-            );
+            if (isOnboardingTask) {
+              addNotification(
+                `🎉 Congratulations! You've completed your onboarding task and earned $${task.paymentAmount.toFixed(2)}! All tasks are now unlocked.`
+              );
+            } else {
+              addNotification(
+                `You have been paid $${task.paymentAmount.toFixed(
+                  2
+                )}! Task "${task.title}" has been approved successfully.`
+              );
+            }
 
             setShowConfetti(true);
             setTimeout(() => setShowConfetti(false), 4000);
@@ -382,14 +394,14 @@ const UserDashboard = () => {
 
     await updateDoc(doc(db, 'users', currentUser.uid), {
       isVIP: true,
-      vipTier: selectedVIP,
+      tier: `${selectedVIP}VIP`, // Update tier to BronzeVIP, SilverVIP, or GoldVIP
       dailyTasksRemaining: newMax,
       lastTaskResetDate: serverTimestamp(),
       vipUpgradedAt: serverTimestamp(),
     });
 
     setDailyTasksRemaining(newMax);
-    setUserProfile((p) => ({ ...p, isVIP: true, vipTier: selectedVIP }));
+    setUserProfile((p) => ({ ...p, isVIP: true, tier: `${selectedVIP}VIP` }));
 
     toast.success(`${selectedVIP} VIP activated! ${newMax} tasks/day unlocked!`, {
       icon: <Crown className="w-6 h-6 text-amber-500" />,
@@ -424,15 +436,22 @@ const UserDashboard = () => {
     .reduce((s, t) => s + t.paymentAmount, 0);
 
   const maxTasks = userProfile?.isVIP
-    ? VIP_CONFIG[userProfile.vipTier]?.dailyTasks || 2
+    ? VIP_CONFIG[userProfile.tier?.replace('VIP', '')]?.dailyTasks || 2
     : 2;
   const progress = maxTasks > 0 ? ((maxTasks - dailyTasksRemaining) / maxTasks) * 100 : 0;
 
-  const categories = ['all', ...new Set(availableTasks.map((t) => t.category))];
+  // ONBOARDING LOGIC: Filter tasks based on onboarding status
+  const hasCompletedOnboarding = userProfile?.hasDoneOnboardingTask || false;
+  const onboardingTask = availableTasks[0]; // First task is the onboarding task
+  
+  // If user hasn't completed onboarding, show only the onboarding task
+  const tasksToShow = hasCompletedOnboarding ? availableTasks : [onboardingTask];
+  
+  const categories = ['all', ...new Set(tasksToShow.map((t) => t.category))];
   const filteredTasks =
     selectedCategory === 'all'
-      ? availableTasks
-      : availableTasks.filter((t) => t.category === selectedCategory);
+      ? tasksToShow
+      : tasksToShow.filter((t) => t.category === selectedCategory);
 
   const myTaskMap = {};
   myTasks.forEach((t) => {
@@ -477,7 +496,7 @@ const UserDashboard = () => {
                     {userProfile?.name ?? 'User'}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {userProfile?.vipTier ? `${userProfile.vipTier} VIP` : 'Standard'}
+                    {userProfile?.tier ? userProfile.tier : 'Standard'}
                   </p>
                 </div>
               </div>
@@ -513,10 +532,33 @@ const UserDashboard = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Onboarding Banner */}
+        {!hasCompletedOnboarding && (
+          <div className="mb-6 bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-6 text-slate-900 shadow-lg">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <Star className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-black mb-2">Welcome to Outlier AI! 🎉</h3>
+                <p className="text-slate-800 mb-3">
+                  Complete your first onboarding task below to unlock all available tasks and start earning!
+                </p>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Quick & Easy • Get Paid Instantly • Unlock Full Access</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Welcome Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-2xl font-black text-white">Welcome back</h1>
+            <h1 className="text-2xl font-black text-white">
+              {hasCompletedOnboarding ? 'Welcome back' : 'Get Started'}
+            </h1>
             <div className="flex items-center gap-4 text-sm text-blue-100">
               <div>
                 <p className="text-xs uppercase tracking-wide">Next Payout</p>
@@ -550,8 +592,8 @@ const UserDashboard = () => {
                     <p className="text-slate-300 text-sm">Available Balance</p>
                     <DollarSign className="w-5 h-5 text-amber-400" />
                   </div>
-                  <h2 className="text-3xl font-black">${(userProfile?.balance ?? 0).toFixed(2)}</h2>
-                  <p className="text-slate-400 text-xs mt-1">{formatKES(userProfile?.balance ?? 0)}</p>
+                  <h2 className="text-3xl font-black">${(userProfile?.currentbalance ?? 0).toFixed(2)}</h2>
+                  <p className="text-slate-400 text-xs mt-1">{formatKES(userProfile?.currentbalance ?? 0)}</p>
                 </div>
 
                 {/* Monthly & Today Earnings */}
@@ -614,11 +656,9 @@ const UserDashboard = () => {
                 {/* Completion Rate */}
                 <div className="bg-slate-50 rounded-xl p-4">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">Completion Rate</span>
+                    <span className="text-slate-600">Total Approved</span>
                     <span className="font-semibold text-slate-900">
-                      {approvedCount + completedCount > 0 
-                        ? Math.round((approvedCount / (approvedCount + completedCount)) * 100) 
-                        : 0}%
+                      {userProfile?.ApprovedTasks ?? 0} tasks
                     </span>
                   </div>
                 </div>
@@ -632,35 +672,37 @@ const UserDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-amber-500" />
-              Available Tasks
+              {hasCompletedOnboarding ? 'Available Tasks' : 'Onboarding Task'}
               <span className="text-sm text-slate-500 font-normal ml-2">
-                ({filteredTasks.length} total)
+                ({filteredTasks.length} {hasCompletedOnboarding ? 'total' : 'to complete'})
               </span>
             </h2>
           </div>
 
-          {/* Categories Filter */}
-          <div className="mb-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`
-                    px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap
-                    transition-all duration-300 ease-out flex-shrink-0
-                    focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2
-                    ${selectedCategory === cat
-                      ? "bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 shadow-lg shadow-amber-400/30"
-                      : "bg-white border border-slate-200 text-slate-700 hover:border-amber-300 hover:text-slate-900"
-                    }
-                  `}
-                >
-                  {cat === "all" ? "All Categories" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </button>
-              ))}
+          {/* Categories Filter - Only show if onboarding is complete */}
+          {hasCompletedOnboarding && (
+            <div className="mb-8">
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`
+                      px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap
+                      transition-all duration-300 ease-out flex-shrink-0
+                      focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2
+                      ${selectedCategory === cat
+                        ? "bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 shadow-lg shadow-amber-400/30"
+                        : "bg-white border border-slate-200 text-slate-700 hover:border-amber-300 hover:text-slate-900"
+                      }
+                    `}
+                  >
+                    {cat === "all" ? "All Categories" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Task Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -670,6 +712,7 @@ const UserDashboard = () => {
               const isInProgress = myTask?.status === "in-progress";
               const cfg = myTask ? statusConfig[myTask.status] : null;
               const Icon = cfg?.icon;
+              const isOnboardingTask = !hasCompletedOnboarding && task.id === onboardingTask?.id;
 
               return (
                 <div
@@ -679,12 +722,21 @@ const UserDashboard = () => {
                     transition-all duration-300 hover:shadow-lg hover:shadow-slate-200/50
                     overflow-hidden h-full flex flex-col 
                     ${isDone ? "opacity-75 grayscale-[20%]" : ""}
+                    ${isOnboardingTask ? "ring-2 ring-amber-400 shadow-lg" : ""}
                   `}
                 >
                   {/* Accent bar */}
                   <div className={`absolute top-0 left-0 w-1 h-full ${
-                    isDone ? "bg-slate-300" : "bg-gradient-to-b from-amber-400 to-orange-500"
+                    isDone ? "bg-slate-300" : isOnboardingTask ? "bg-gradient-to-b from-green-400 to-emerald-500" : "bg-gradient-to-b from-amber-400 to-orange-500"
                   }`}></div>
+
+                  {/* Onboarding Badge */}
+                  {isOnboardingTask && (
+                    <div className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                      <Star className="w-3 h-3" />
+                      START HERE
+                    </div>
+                  )}
 
                   <div className="p-4 pl-5 flex-1 flex flex-col">
                     {/* Header with badges */}
@@ -726,7 +778,9 @@ const UserDashboard = () => {
                         ${isDone
                           ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                           : dailyTasksRemaining > 0
-                          ? "bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 hover:shadow-lg hover:shadow-amber-400/25 hover:scale-[1.02]"
+                          ? isOnboardingTask 
+                            ? "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-400/25 hover:scale-[1.02]"
+                            : "bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 hover:shadow-lg hover:shadow-amber-400/25 hover:scale-[1.02]"
                           : "bg-slate-100 text-slate-400 cursor-not-allowed"
                         }
                       `}
@@ -745,7 +799,7 @@ const UserDashboard = () => {
                         </span>
                       ) : dailyTasksRemaining > 0 ? (
                         <span className="flex items-center gap-2 truncate">
-                          START TASK
+                          {isOnboardingTask ? 'START ONBOARDING' : 'START TASK'}
                           <ChevronRight className="w-4 h-4 flex-shrink-0 transition-transform group-hover/btn:translate-x-0.5" />
                         </span>
                       ) : (
@@ -859,7 +913,7 @@ const UserDashboard = () => {
       </button>
 
       <p className="text-[11px] text-slate-500 text-center mt-3">
-        You’ll receive an STK Push shortly. Enter your PIN to confirm the payment.
+        You'll receive an STK Push shortly. Enter your PIN to confirm the payment.
       </p>
     </div>
   </div>
