@@ -170,7 +170,21 @@ const UserDashboard = () => {
         });
         setDailyTasksRemaining(maxTasks);
       } else {
-        setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
+        // Inside onSnapshot for user profile
+const today = new Date().toLocaleDateString('en-CA');
+const lastReset = data.lastTaskResetDate?.toDate?.().toLocaleDateString('en-CA') || null;
+
+// Reset daily counter at midnight
+if (lastReset !== today) {
+  const newMax = isVIP ? VIP_CONFIG[data.vipTier?.replace('VIP', '')]?.dailyTasks || 2 : 2;
+  updateDoc(doc(db, 'users', currentUser.uid), {
+    dailyTasksRemaining: newMax,
+    lastTaskResetDate: serverTimestamp(),
+  });
+  setDailyTasksRemaining(newMax);
+} else {
+  setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
+}
       }
     });
 
@@ -577,95 +591,147 @@ const UserDashboard = () => {
           </div>
         </div>
 
-        {/* Consolidated Stats Dashboard */}
-        <section className="mb-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Financial Overview */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-700 rounded-2xl p-6 text-white">
-              <h2 className="text-lg font-semibold mb-6 text-slate-200">Financial Overview</h2>
-              
-              <div className="space-y-5">
-                {/* Available Balance */}
-                <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-slate-300 text-sm">Available Balance</p>
-                    <DollarSign className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <h2 className="text-3xl font-black">${(userProfile?.currentbalance ?? 0).toFixed(2)}</h2>
-                  <p className="text-slate-400 text-xs mt-1">{formatKES(userProfile?.currentbalance ?? 0)}</p>
-                </div>
+       
+       {/* Expert-Level Stats Dashboard – Mobile-First, Premium Feel */}
+<section className="mb-10">
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* Monthly & Today Earnings */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="text-slate-400 text-xs">This Month</p>
-                      <TrendingUp className="w-4 h-4 text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-green-400">
-                      +${(userProfile?.thisMonthEarned ?? 0).toFixed(2)}
-                    </h3>
-                  </div>
+    {/* === FINANCIAL OVERVIEW – Premium Glass Card === */}
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-xl border border-white/10">
+      {/* Subtle animated glow */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 via-transparent to-transparent" />
 
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="text-slate-400 text-xs">Today</p>
-                      <Activity className="w-4 h-4 text-blue-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-blue-400">${todayEarnings.toFixed(2)}</h3>
-                  </div>
-                </div>
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-semibold text-slate-200">Financial Overview</h3>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+            <TrendingUp className="w-4 h-4" />
+            <span>Live</span>
+          </div>
+        </div>
+
+        {/* Main Balance */}
+        <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-300">Available Balance</p>
+            <DollarSign className="w-5 h-5 text-amber-400" />
+          </div>
+          <p className="text-3xl font-black tracking-tight">
+            ${(userProfile?.currentbalance ?? 0).toFixed(2)}
+          </p>
+          <p className="text-lg font-bold text-amber-300 mt-1">
+            {formatKES(userProfile?.currentbalance ?? 0)}
+          </p>
+          <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5" />
+            Next payout in {formatTime(timeLeft)}
+          </p>
+        </div>
+
+        {/* This Month + Today */}
+        <div className="grid grid-cols-2 gap-4 mt-5">
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            <p className="text-xs text-slate-400">This Month</p>
+            <p className="text-xl font-bold text-emerald-400 mt-1">
+              +${(userProfile?.thisMonthEarned ?? 0).toFixed(2)}
+            </p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            <p className="text-xs text-slate-400">Earned Today</p>
+            <p className="text-xl font-bold text-blue-400 mt-1">
+              ${todayEarnings.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* === TODAY'S PERFORMANCE – Clean & Precise === */}
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h3 className="text-base font-semibold text-slate-900 mb-5">Today's Performance</h3>
+
+      {(() => {
+        const todayCompleted = myTasks.filter(t => 
+          new Date(t.startedAt).toDateString() === new Date().toDateString() &&
+          ['completed', 'approved'].includes(t.status)
+        ).length;
+
+        const maxDaily = userProfile?.isVIP
+          ? VIP_CONFIG[userProfile.tier?.replace('VIP', '')]?.dailyTasks || 2
+          : 2;
+
+        const remaining = Math.max(0, maxDaily - todayCompleted);
+        const progress = maxDaily > 0 ? Math.round((todayCompleted / maxDaily) * 100) : 0;
+
+        return (
+          <div className="space-y-5">
+            {/* Quota Progress */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-600">Daily Quota</span>
+                <span className="text-sm font-bold text-amber-600">
+                  {todayCompleted} / {maxDaily}
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-700 rounded-full"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                {remaining === 0 
+                  ? "Daily limit reached — excellent work!" 
+                  : `${remaining} task${remaining > 1 ? 's' : ''} remaining today`
+                }
+              </p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <CheckCircle className="w-6 h-6 text-emerald-600 mx-auto mb-1" />
+                <p className="text-xs text-emerald-800 font-medium">Approved</p>
+                <p className="text-lg font-bold text-emerald-900">{approvedCount}</p>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <RefreshCw className="w-6 h-6 text-amber-600 mx-auto mb-1" />
+                <p className="text-xs text-amber-800 font-medium">Review</p>
+                <p className="text-lg font-bold text-amber-900">
+                  {myTasks.filter(t => 
+                    new Date(t.startedAt).toDateString() === new Date().toDateString() && 
+                    t.status === 'completed'
+                  ).length}
+                </p>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <Activity className="w-6 h-6 text-blue-600 mx-auto mb-1" />
+                <p className="text-xs text-blue-800 font-medium">Active</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {myTasks.filter(t => 
+                    new Date(t.startedAt).toDateString() === new Date().toDateString() && 
+                    t.status === 'in-progress'
+                  ).length}
+                </p>
               </div>
             </div>
 
-            {/* Task Performance */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold mb-6 text-slate-900">Task Performance</h2>
-              
-              <div className="space-y-5">
-                {/* Progress Bar */}
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Daily Progress</span>
-                    <span className="font-semibold text-slate-900">{dailyTasksRemaining} tasks left</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-amber-400 to-orange-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Task Stats */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-4 bg-green-50 rounded-xl border border-green-100">
-                    <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                    <p className="text-xs text-green-800 mb-1">Approved</p>
-                    <h3 className="text-2xl font-bold text-green-900">{approvedCount}</h3>
-                  </div>
-
-                  <div className="text-center p-4 bg-orange-50 rounded-xl border border-orange-100">
-                    <Clock className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-                    <p className="text-xs text-orange-800 mb-1">In Review</p>
-                    <h3 className="text-2xl font-bold text-orange-900">{completedCount}</h3>
-                  </div>
-                </div>
-
-                {/* Completion Rate */}
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-600">Total Approved</span>
-                    <span className="font-semibold text-slate-900">
-                      {userProfile?.ApprovedTasks ?? 0} tasks
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Today's Earnings */}
+            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-sm text-slate-600">Earnings Today</span>
+              <span className="text-xl font-bold text-green-600">
+                +${todayEarnings.toFixed(2)}
+              </span>
             </div>
           </div>
-        </section>
+        );
+      })()}
+    </div>
+  </div>
+</section>
+
 
         {/* Available Tasks Section */}
         <section className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -918,7 +984,6 @@ const UserDashboard = () => {
     </div>
   </div>
 )}
-
 
       {/* Notification Panel */}
       {showNotifications && (

@@ -1182,43 +1182,7 @@ const availableTasks = [
         required: true
       }
     ]
-  },  {
-    id: 'task26',
-    title: 'Label Traffic Signs in Street View Images',
-    category: 'Data Labeling',
-    paymentAmount: 32,
-    duration: '1h',
-    difficulty: 'Advanced',
-    questions: [
-      {
-        id: 'q1',
-        type: 'opinion',
-        question: 'Which traffic signs are visible? sampleA: “Stop sign and pedestrian crossing.”, sampleB: “Speed limit and no parking signs.”, sampleC: “Traffic light and yield sign.”',
-        options: ['A', 'B', 'C', 'Multiple'],
-        required: true
-      },
-      {
-        id: 'q2',
-        type: 'text',
-        question: 'Describe any potential hazards for AI detection in this image.',
-        required: true
-      },
-      {
-        id: 'q3',
-        type: 'opinion',
-        question: 'How critical is accurate labeling for AI traffic applications? sampleA: “Errors may cause accidents.”, sampleB: “Minor mistakes are tolerable.”',
-        options: ['Critical', 'Somewhat Important', 'Not Important'],
-        required: true
-      },
-      {
-        id: 'q4',
-        type: 'file',
-        question: 'Upload annotated image with labels (PDF/DOCX/PNG)',
-        acceptedFormats: '.pdf,.docx,.png',
-        required: true
-      }
-    ]
-  },
+  },  
   {
     id: 'task27',
     title: 'Evaluate AI Chatbot Story Responses',
