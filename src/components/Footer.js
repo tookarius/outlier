@@ -22,10 +22,12 @@ function Footer() {
               </span>
             </div>
             <p className="text-slate-300 leading-relaxed">
-              50,000+ members earning $15–$50/hr training AI from home.
-              <br />No experience needed • Paid weekly
+              Join thousands of people worldwide contributing to AI development with flexible remote tasks.
+              <br />
+              No experience required • Weekly payments
             </p>
 
+            {/* Removed $12M+ and 4.9★ claims — replaced with safe trust signals */}
             <div className="flex flex-wrap gap-3 text-xs">
               <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-md">
                 <svg className="w-3.5 h-3.5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -35,7 +37,7 @@ function Footer() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>$12M+ paid</span>
+                <span>Weekly payouts</span>
               </div>
               <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-md">
                 <svg className="w-3.5 h-3.5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -45,7 +47,7 @@ function Footer() {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span>4.9★ from 12K+</span>
+                <span>Trusted globally</span>
               </div>
             </div>
           </div>
@@ -54,9 +56,9 @@ function Footer() {
           <div>
             <h4 className="text-base font-bold mb-3 text-amber-400">Community</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><button onClick={() => scrollToSection("jobs")} className="hover:text-amber-400">AI Jobs</button></li>
+              <li><button onClick={() => scrollToSection("jobs")} className="hover:text-amber-400">Available Tasks</button></li>
               <li><button onClick={() => scrollToSection("how")} className="hover:text-amber-400">How It Works</button></li>
-              <li><Link to="/success-stories" className="hover:text-amber-400">Success Stories</Link></li>
+              <li><Link to="/success-stories" className="hover:text-amber-400">Member Stories</Link></li>
               <li>
                 <a href="https://discord.gg/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">
                   Join Discord
@@ -71,7 +73,7 @@ function Footer() {
             <ul className="space-y-2 text-slate-300">
               <li><Link to="/training-center" className="hover:text-amber-400">Training Center</Link></li>
               <li><Link to="/blog" className="hover:text-amber-400">Blog</Link></li>
-              <li><Link to="/payment-proof" className="hover:text-amber-400">Payment Proof</Link></li>
+              <li><Link to="/payment-proof" className="hover:text-amber-400">Payment Examples</Link></li>
               <li><Link to="/faq" className="hover:text-amber-400">FAQ</Link></li>
             </ul>
           </div>
@@ -82,15 +84,15 @@ function Footer() {
             <ul className="space-y-2 text-slate-300">
               <li><a href="mailto:support@outlierai.com" className="hover:text-amber-400">support@outlierai.com</a></li>
               <li><Link to="/contact" className="hover:text-amber-400">Contact Us</Link></li>
-              <li><Link to="/terms" className="hover:text-amber-400">Terms</Link></li>
-              <li><Link to="/privacy" className="hover:text-amber-400">Privacy</Link></li>
+              <li><Link to="/terms" className="hover:text-amber-400">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-amber-400">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
-          <p>© 2025 Outlier AI by ComoAI Labs</p>
+          <p>© 2025 Outlier AI by ComoAI Labs. All rights reserved.</p>
           <div className="flex gap-4 mt-3 md:mt-0">
             <a href="https://twitter.com/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">Twitter</a>
             <a href="https://linkedin.com/company/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">LinkedIn</a>

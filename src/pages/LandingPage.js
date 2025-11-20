@@ -6,7 +6,6 @@ import {
   Check,
   Clock,
   Users,
-  Zap,
   ArrowRight,
   Menu,
   X,
@@ -28,93 +27,63 @@ function LandingPage() {
   };
 
   const jobs = [
-    { title: "Online Rater", pay: "$15–$35/hr", desc: "Rate search results, chatbots, and ads" },
-    { title: "Data Collector", pay: "$18–$40/hr", desc: "Record voice, take photos, or write prompts" },
-    { title: "Data Annotator", pay: "$20–$45/hr", desc: "Label images and text with easy tools" },
-    { title: "Search Evaluator", pay: "$16–$38/hr", desc: "Improve Google and YouTube results" },
-    { title: "Ad Reviewer", pay: "$15–$30/hr", desc: "Review short ads in 2 minutes" },
-    { title: "VIP Projects", pay: "Up to $80/hr", desc: "Medical, legal, and self-driving AI" },
+    { title: "Online Rater", pay: "Competitive hourly rates", desc: "Evaluate search results, chatbots, and advertisements" },
+    { title: "Data Collector", pay: "Competitive hourly rates", desc: "Record audio, capture images, or create prompts" },
+    { title: "Data Annotator", pay: "Competitive hourly rates", desc: "Label images and text using intuitive tools" },
+    { title: "Search Evaluator", pay: "Competitive hourly rates", desc: "Enhance search and video platform performance" },
+    { title: "Ad Reviewer", pay: "Competitive hourly rates", desc: "Review advertisements in minutes" },
+    { title: "Specialized Projects", pay: "Premium rates available", desc: "Work on advanced AI tasks in specialized fields" },
   ];
 
   const steps = [
-    { step: 1, title: "Sign Up Free", desc: "Create your account in 2 minutes" },
-    { step: 2, title: "Take Quick Quiz", desc: "Answer 5 simple questions to unlock jobs" },
-    { step: 3, title: "Start Tasks", desc: "Choose from 3,000+ available tasks" },
-    { step: 4, title: "Get Paid Weekly", desc: "Every Thursday — fast and reliable" },
+    { step: 1, title: "Create Account", desc: "Sign up for free in minutes" },
+    { step: 2, title: "Qualify", desc: "Complete a brief assessment to unlock tasks" },
+    { step: 3, title: "Begin Tasks", desc: "Select from a variety of available projects" },
+    { step: 4, title: "Receive Payments", desc: "Get paid weekly via PayPal, M-Pesa, or bank transfer" },
   ];
 
-
-
-
   return (
-    <>
+    <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
       {/* ===== HEADER ===== */}
-      <header
-        className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-          scrolled ? "bg-white/95 backdrop-blur-sm shadow-sm" : "bg-transparent"
-        }`}
-      >
-        <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 text-xs font-semibold py-1.5 text-center">
-          50,000+ members earned $12M+ in 2025 • First $100 in 48h
-        </div>
-
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-slate-900/95 backdrop-blur-md shadow-lg" : "bg-transparent"}`}>
         <nav className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-slate-900">
-            Outlier<span className="text-amber-500">AI</span>
-             <span className="hidden sm:inline text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-              by ComoAI Labs
-            </span>
+          <Link to="/" className="text-2xl font-bold flex items-center gap-2">
+            Outlier<span className="text-amber-400">AI</span>
+            <span className="hidden sm:inline text-xs bg-amber-400/20 px-2 py-1 rounded-full">by ComoAI Labs</span>
           </Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6 text-sm">
-            <button onClick={() => scrollTo("jobs")} className="text-slate-700 hover:text-amber-600">
-              Jobs
-            </button>
-            <button onClick={() => scrollTo("how")} className="text-slate-700 hover:text-amber-600">
-              How It Works
-            </button>
-            <span className="text-slate-500">
-              <span className="font-bold text-amber-600">$15–$50/hr</span> • Paid Weekly
-            </span>
-            <Link to="/signin" className="text-slate-700 hover:text-amber-600">
-              Log In
-            </Link>
+            <button onClick={() => scrollTo("jobs")} className="hover:text-amber-400 transition">Tasks</button>
+            <button onClick={() => scrollTo("how")} className="hover:text-amber-400 transition">How It Works</button>
+            <span className="text-blue-200">Remote AI tasks • Weekly payments</span>
+            <Link to="/signin" className="hover:text-amber-400 transition">Log In</Link>
             <Link
               to="/signup"
-              className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold px-5 py-2 rounded-full hover:shadow transition"
+              className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold px-4 py-2 rounded-full hover:shadow-md transition"
             >
               Join Free
             </Link>
           </div>
 
           {/* Mobile Toggle */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="md:hidden text-xl text-slate-800"
-          >
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden text-2xl">
             {mobileOpen ? <X /> : <Menu />}
           </button>
         </nav>
 
         {/* Mobile Menu */}
         {mobileOpen && (
-          <div className="md:hidden bg-white border-t border-slate-100 shadow-sm">
+          <div className="md:hidden bg-slate-900/95 backdrop-blur-md border-t border-white/10">
             <div className="px-6 py-6 space-y-4 text-center">
-              <button onClick={() => scrollTo("jobs")} className="block text-base font-medium text-slate-700 hover:text-amber-600">
-                Jobs
-              </button>
-              <button onClick={() => scrollTo("how")} className="block text-base font-medium text-slate-700 hover:text-amber-600">
-                How It Works
-              </button>
-              <Link to="/signin" className="block text-base hover:text-amber-600">
-                Log In
-              </Link>
+              <button onClick={() => scrollTo("jobs")} className="block text-base hover:text-amber-400">Tasks</button>
+              <button onClick={() => scrollTo("how")} className="block text-base hover:text-amber-400">How It Works</button>
+              <Link to="/signin" className="block text-base hover:text-amber-400">Log In</Link>
               <Link
                 to="/signup"
-                className="block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold py-3 rounded-xl"
+                className="block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold py-2 rounded-full"
               >
-                Join Free – Start Earning
+                Join Free
               </Link>
             </div>
           </div>
@@ -122,60 +91,55 @@ function LandingPage() {
       </header>
 
       {/* ===== HERO ===== */}
-      <section className="pt-28 pb-12 bg-gradient-to-br from-slate-50 to-white px-4 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
-            <Zap className="w-3.5 h-3.5 mr-2" /> New members earn $100 in 48h
-          </div>
-
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight mb-4">
-            Earn <span className="text-amber-500">$15–$50/hr</span> Training AI From Home
+      <section className="pt-28 pb-16 px-4 text-center">
+        <div className="max-w-5xl mx-auto">
+          <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
+            Contribute to Cutting-Edge AI Development
           </h1>
-
-          <p className="text-base text-slate-600 mb-8 max-w-2xl mx-auto">
-            No experience needed • Work anytime • Paid every Thursday via M-Pesa, PayPal, or bank
+          <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+            Work remotely on flexible AI training tasks. No experience required. Receive weekly payments via PayPal, M-Pesa, or bank transfer.
           </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
             <Link
               to="/signup"
-              className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold text-base px-8 py-3 rounded-full hover:shadow-md hover:scale-[1.02] transition flex items-center justify-center"
+              className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold text-base px-6 py-3 rounded-full hover:shadow-md transition flex items-center justify-center gap-2"
             >
-              Join Free <ArrowRight className="ml-2 w-4 h-4" />
+              Get Started <ArrowRight className="w-4 h-4" />
             </Link>
             <button
               onClick={() => scrollTo("jobs")}
-              className="text-slate-700 border border-slate-300 px-7 py-3 rounded-full text-base hover:border-slate-400 transition"
+              className="text-white border border-white/30 px-6 py-3 rounded-full text-base hover:bg-white/10 transition"
             >
-              View Jobs
+              Explore Tasks
             </button>
           </div>
-
-          <div className="flex justify-center gap-6 text-xs text-slate-500 flex-wrap">
-            <span className="flex items-center"><Check className="w-3.5 h-3.5 mr-1 text-green-600" /> 3,000+ tasks</span>
-            <span className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1" /> 48h support</span>
-            <span className="flex items-center"><Users className="w-3.5 h-3.5 mr-1" /> 50,000+ members</span>
+          <div className="flex justify-center gap-6 text-sm text-blue-200 flex-wrap">
+            <span className="flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> Diverse task selection</span>
+            <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> Responsive support</span>
+            <span className="flex items-center gap-2"><Users className="w-4 h-4" /> Global contributor network</span>
           </div>
         </div>
       </section>
 
       {/* ===== JOBS ===== */}
-      <section id="jobs" className="py-12 bg-white">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-black text-slate-900 mb-3">Choose Your AI Job</h2>
-          <p className="text-base text-slate-600 mb-8">New tasks every hour — start in minutes</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section id="jobs" className="py-16 px-4">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-3">AI Training Opportunities</h2>
+          <p className="text-base text-blue-100 mb-8">Engage in tasks that shape the future of AI, with new projects added regularly</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {jobs.map((job, i) => (
               <div
                 key={i}
-                className="bg-slate-50 p-5 rounded-xl border border-slate-200 hover:border-amber-400 hover:shadow-sm transition"
+                className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 hover:border-amber-400/50 transition"
               >
-                <h3 className="text-lg font-bold text-slate-900 mb-1">{job.title}</h3>
-                <p className="text-xl font-bold text-amber-600 mb-2">{job.pay}</p>
-                <p className="text-slate-600 mb-3 text-sm">{job.desc}</p>
-                <Link to="/signup" className="text-amber-600 font-semibold text-sm hover:underline flex items-center justify-center md:justify-start">
-                  Start <ArrowRight className="ml-1 w-3.5 h-3.5" />
+                <h3 className="text-lg font-semibold text-white mb-2">{job.title}</h3>
+                <p className="text-base font-medium text-amber-400 mb-3">{job.pay}</p>
+                <p className="text-sm text-blue-100 mb-4">{job.desc}</p>
+                <Link
+                  to="/signup"
+                  className="text-amber-400 font-medium text-sm hover:underline flex items-center justify-center gap-1"
+                >
+                  Start Now <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             ))}
@@ -184,75 +148,55 @@ function LandingPage() {
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section id="how" className="py-12 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-black text-slate-900 mb-3">Start Earning in 10 Minutes</h2>
-          <p className="text-base text-slate-600 mb-8">4 simple steps — no experience required</p>
-
+      <section id="how" className="py-16 px-4 bg-white/5">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-white mb-3">Begin in Minutes</h2>
+          <p className="text-base text-blue-100 mb-8">A straightforward process to join our AI training platform</p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {steps.map((s) => (
               <div key={s.step} className="relative">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                  <div className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm font-bold mb-3 mx-auto">
+                <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20">
+                  <div className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center text-base font-bold mb-3 mx-auto">
                     {s.step}
                   </div>
-                  <h3 className="font-bold text-slate-900 mb-1 text-sm">{s.title}</h3>
-                  <p className="text-slate-600 text-xs">{s.desc}</p>
+                  <h3 className="font-semibold text-white mb-2 text-sm">{s.title}</h3>
+                  <p className="text-blue-200 text-xs">{s.desc}</p>
                 </div>
                 {s.step < 4 && (
-                  <div className="hidden md:block absolute top-1/2 -right-3 w-6 h-0.5 bg-slate-300 -translate-y-1/2" />
+                  <div className="hidden md:block absolute top-1/2 -right-3 w-6 h-0.5 bg-white/30 -translate-y-1/2" />
                 )}
               </div>
             ))}
           </div>
-
           <Link
             to="/signup"
-            className="mt-8 inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold text-base px-8 py-3 rounded-full hover:shadow-md transition"
+            className="mt-8 inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold text-base px-6 py-3 rounded-full hover:shadow-md transition"
           >
-            Join Now – Free
+            Join Now
           </Link>
         </div>
       </section>
 
-      {/* ===== STATS ===== */}
-      <section className="py-10 bg-gradient-to-r from-slate-900 to-indigo-900 text-white text-center">
-        <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <div className="text-3xl font-black text-amber-400">$1,800</div>
-            <p className="text-slate-300 text-sm">Avg monthly earnings</p>
-          </div>
-          <div>
-            <div className="text-3xl font-black text-amber-400">$46/hr</div>
-            <p className="text-slate-300 text-sm">Top earners (60 days)</p>
-          </div>
-          <div>
-            <div className="text-3xl font-black text-amber-400">4.9/5</div>
-            <p className="text-slate-300 text-sm">From 12,000+ members</p>
-          </div>
-        </div>
-      </section>
-
       {/* ===== FINAL CTA ===== */}
-      <section className="py-12 bg-white">
-        <div className="max-w-3xl mx-auto text-center px-4">
-          <h2 className="text-3xl font-black text-slate-900 mb-4">
-            Earn $500–$2,000/month From Home
+      <section className="py-16 px-4 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Shape the Future of AI
           </h2>
-          <p className="text-base text-slate-600 mb-6">
-            Join 50,000+ people training AI for Google, Meta & OpenAI
+          <p className="text-base text-blue-100 mb-6">
+            Join a global community of contributors working on innovative AI projects from anywhere
           </p>
           <Link
             to="/signup"
-            className="inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-black text-lg px-10 py-4 rounded-full hover:shadow-md hover:scale-[1.03] transition"
+            className="inline-block bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold text-base px-6 py-3 rounded-full hover:shadow-md transition"
           >
-            Join Outlier AI – Free Forever
+            Start Contributing
           </Link>
         </div>
       </section>
 
       <Footer />
-    </>
+    </div>
   );
 }
 
