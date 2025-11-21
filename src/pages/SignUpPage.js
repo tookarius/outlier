@@ -12,7 +12,7 @@ const generateReferralCode = () => {
   let code = '';
   code += chars.charAt(Math.floor(Math.random() * chars.length));
   code += chars.charAt(Math.floor(Math.random() * chars.length));
-  for (let i = 0; i = 4; i++) {
+  for (let i = 0; i < 4; i++) {
     code += nums.charAt(Math.floor(Math.random() * nums.length));
   }
   code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -42,65 +42,100 @@ function SignUpPage() {
   };
 
   const handleSignUp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    if (!name.trim()) return setError('Full name is required'), setLoading(false);
-    if (!email.trim()) return setError('Email is required'), setLoading(false);
-    if (!phone.trim()) return setError('Phone number is required'), setLoading(false);
-    if (!isValidPhone(phone)) return setError('Enter a valid phone number'), setLoading(false);
-    if (!password) return setError('Password is required'), setLoading(false);
-    if (password !== confirmPassword) return setError('Passwords do not match'), setLoading(false);
-    if (password.length < 6) return setError('Password must be at least 6 characters'), setLoading(false);
+  // Fixed: Separate setState calls from return statements
+  if (!name.trim()) {
+    setError('Full name is required');
+    setLoading(false);
+    return;
+  }
+  
+  if (!email.trim()) {
+    setError('Email is required');
+    setLoading(false);
+    return;
+  }
+  
+  if (!phone.trim()) {
+    setError('Phone number is required');
+    setLoading(false);
+    return;
+  }
+  
+  if (!isValidPhone(phone)) {
+    setError('Enter a valid phone number');
+    setLoading(false);
+    return;
+  }
+  
+  if (!password) {
+    setError('Password is required');
+    setLoading(false);
+    return;
+  }
+  
+  if (password !== confirmPassword) {
+    setError('Passwords do not match');
+    setLoading(false);
+    return;
+  }
+  
+  if (password.length < 6) {
+    setError('Password must be at least 6 characters');
+    setLoading(false);
+    return;
+  }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const user = userCredential.user;
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    const user = userCredential.user;
 
-      const referralCode = generateReferralCode();
+    const referralCode = generateReferralCode();
 
-      await setDoc(doc(db, 'users', user.uid), {
-        userId: user.uid,
-        createdAt: serverTimestamp(),
-        email: email.trim().toLowerCase(),
-        name: name.trim(),
-        phone: phone.trim(),
-        referralCode,
-        currentbalance: 0,
-        thisMonthEarned: 0,
-        totalEarned: 0,
-        ApprovedTasks: 0,
-        hasDoneOnboardingTask: false,
-        isVIP: false,
-        tier: "standard",
-        dailyTasksRemaining: 2
-      });
+    await setDoc(doc(db, 'users', user.uid), {
+      userId: user.uid,
+      createdAt: serverTimestamp(),
+      email: email.trim().toLowerCase(),
+      name: name.trim(),
+      phone: phone.trim(),
+      referralCode,
+      currentbalance: 0,
+      thisMonthEarned: 0,
+      totalEarned: 0,
+      ApprovedTasks: 0,
+      hasDoneOnboardingTask: false,
+      isVIP: false,
+      tier: "standard",
+      dailyTasksRemaining: 2
+    });
 
-      toast.success('Welcome to Outlier AI! Your account is ready.');
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Signup error:', err);
-      let msg = 'Failed to create account. Please try again.';
+    toast.success('Welcome to Outlier AI! Your account is ready.');
+    navigate('/dashboard');
+  } catch (err) {
+    console.error('Signup error:', err);
+    let msg = 'Failed to create account. Please try again.';
 
-      if (err.message.includes('timeout')) {
-        msg = 'Slow connection. Account may have been created — try logging in.';
-      } else if (err.code === 'auth/email-already-in-use') {
-        msg = 'This email is already registered. Please sign in.';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Invalid email address.';
-      } else if (err.code === 'auth/weak-password') {
-        msg = 'Password too weak. Use 6+ characters.';
-      } else if (err.code === 'auth/too-many-requests') {
-        msg = 'Too many attempts. Please wait a minute.';
-      }
-
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+    if (err.message.includes('timeout')) {
+      msg = 'Slow connection. Account may have been created — try logging in.';
+    } else if (err.code === 'auth/email-already-in-use') {
+      msg = 'This email is already registered. Please sign in.';
+    } else if (err.code === 'auth/invalid-email') {
+      msg = 'Invalid email address.';
+    } else if (err.code === 'auth/weak-password') {
+      msg = 'Password too weak. Use 6+ characters.';
+    } else if (err.code === 'auth/too-many-requests') {
+      msg = 'Too many attempts. Please wait a minute.';
     }
-  };
+
+    setError(msg);
+    toast.error(msg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-12">

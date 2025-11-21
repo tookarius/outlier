@@ -171,9 +171,10 @@ useEffect(() => {
   if (!currentUser) return;
 
   // Track if we've already done the daily reset check this session
-  let hasCheckedReset = false;
+    let hasCheckedReset = false;
+    let isInitialLoad = true;
 
-  const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
+   const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
     if (!snap.exists()) return;
     const data = snap.data();
     setUserProfile(data);
@@ -184,26 +185,30 @@ useEffect(() => {
     const tier = data.tier?.replace('VIP', '') || '';
     const maxTasks = isVIP ? VIP_CONFIG[tier]?.dailyTasks || 1 : 1;
 
-    // Only check for reset on the FIRST snapshot (page load) or if day changed
-    if (!hasCheckedReset && lastReset !== today) {
+    // Only check for reset on FIRST snapshot (page load) or if day actually changed
+    if (isInitialLoad && lastReset !== today && !hasCheckedReset) {
       hasCheckedReset = true; // Prevent multiple reset attempts
+      isInitialLoad = false;
       
       setDailyTasksRemaining(maxTasks);
       
+       // Single write operation for daily reset
       updateDoc(doc(db, 'users', currentUser.uid), {
         dailyTasksRemaining: maxTasks,
         lastTaskResetDate: serverTimestamp(),
       }).catch(err => {
         console.error('Failed to reset daily tasks:', err);
+        // Fallback to existing value if write fails
         setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
       });
     } else {
-      // Just sync with the database value
+      isInitialLoad = false;
+      // Just sync with the database value - no writes
       setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
     }
   });
 
-  const saved = localStorage.getItem(`myTasks_${currentUser.uid}`);
+ const saved = localStorage.getItem(`myTasks_${currentUser.uid}`);
   if (saved) setMyTasks(JSON.parse(saved));
 
   const savedNotifs = localStorage.getItem(`notifications_${currentUser.uid}`);
@@ -223,98 +228,102 @@ useEffect(() => {
   useEffect(() => {
     if (!currentUser) return;
 
-    const interval = setInterval(() => {
-      setMyTasks((prev) => {
-        let changed = false;
-        const updated = prev.map((task) => {
-          // Check if this is the onboarding task
+     const interval = setInterval(() => {
+    setMyTasks((prev) => {
+      const updates = []; // Collect all tasks needing Firebase updates
+      let localChanged = false;
+
+       const updated = prev.map((task) => {
           const isOnboardingTask = task.id.startsWith(availableTasks[0]?.id);
+        
+        if (task.status === 'completed' && !task.approvalScheduled) {
+          const approvalDelay = isOnboardingTask 
+            ? Math.random() * 30000 + 30000  // 30-60 seconds
+            : Math.random() * 240000 + 60000; // 1-5 minutes
           
-          if (task.status === 'completed' && !task.approvalScheduled) {
-            // Faster approval time for onboarding task (30-60 seconds)
-            // Normal approval time for regular tasks (1-5 minutes)
-            const approvalDelay = isOnboardingTask 
-              ? Math.random() * 30000 + 30000  // 30-60 seconds for onboarding
-              : Math.random() * 240000 + 60000; // 1-5 minutes for regular tasks
-            
-            task.approvalScheduled = Date.now() + approvalDelay;
-            changed = true;
-          }
+          task.approvalScheduled = Date.now() + approvalDelay;
+          localChanged = true;
+        }
 
           if (
-            task.approvalScheduled &&
-            Date.now() >= task.approvalScheduled &&
-            task.status !== 'approved'
-          ) {
-            task.status = 'approved';
-            task.approvedAt = new Date();
-            changed = true;
+          task.approvalScheduled &&
+          Date.now() >= task.approvalScheduled &&
+          task.status !== 'approved'
+        ) {
+          task.status = 'approved';
+          task.approvedAt = new Date();
+          localChanged = true;
 
-            updateDoc(doc(db, 'users', currentUser.uid), {
-              currentbalance: increment(task.paymentAmount),
-              thisMonthEarned: increment(task.paymentAmount),
-              totalEarned: increment(task.paymentAmount),
-              ApprovedTasks: increment(1),
-              ...(isOnboardingTask && { hasDoneOnboardingTask: true })
-            });
-
-            toast.success(`+${task.paymentAmount.toFixed(2)} approved!`, {
-              icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-            });
-
-            if (isOnboardingTask) {
-              addNotification(
-                `🎉 Congratulations! You've completed your onboarding task and earned ${task.paymentAmount.toFixed(2)}! All tasks are now unlocked.`
-              );
-            } else {
-              addNotification(
-                `You have been paid ${task.paymentAmount.toFixed(
-                  2
-                )}! Task "${task.title}" has been approved successfully.`
-              );
-            }
-
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 4000);
-          }
-          return task;
-        });
-
-        if (changed && currentUser?.uid) {
-          localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updated));
+           // Add to batch update list instead of immediate write
+          updates.push({
+            task,
+            isOnboardingTask
+          });
         }
-        return updated;
+        return task;
       });
-    }, 5000);
 
-    return () => clearInterval(interval);
-  }, [currentUser, addNotification]);
+       // Perform ALL Firebase updates in a single batch
+      if (updates.length > 0) {
+        // Calculate total earnings for single update
+        const totalEarnings = updates.reduce((sum, u) => sum + u.task.paymentAmount, 0);
+        const hasOnboarding = updates.some(u => u.isOnboardingTask);
+
+         // SINGLE Firebase write for all approved tasks
+        updateDoc(doc(db, 'users', currentUser.uid), {
+          currentbalance: increment(totalEarnings),
+          thisMonthEarned: increment(totalEarnings),
+          totalEarned: increment(totalEarnings),
+          ApprovedTasks: increment(updates.length),
+          ...(hasOnboarding && { hasDoneOnboardingTask: true })
+        }).catch(err => console.error('Batch approval failed:', err));
+
+            // Show notifications and confetti
+        updates.forEach(({ task, isOnboardingTask }) => {
+          toast.success(`+$${task.paymentAmount.toFixed(2)} approved!`, {
+            icon: <CheckCircle className="w-5 h-5 text-green-500" />,
+          });
+
+          if (isOnboardingTask) {
+            addNotification(
+              `🎉 Congratulations! You've completed your onboarding task and earned $${task.paymentAmount.toFixed(2)}! All tasks are now unlocked.`
+            );
+          } else {
+            addNotification(
+              `You have been paid $${task.paymentAmount.toFixed(2)}! Task "${task.title}" has been approved successfully.`
+            );
+          }
+        });
+         if (updates.length > 0) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 4000);
+        }
+      }
+
+     // Only update localStorage if something actually changed
+      if (localChanged && currentUser?.uid) {
+        localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updated));
+      }
+
+      return updated;
+    });
+  }, 60000); // Changed from 5000 to 60000 (60 seconds)
+
+  return () => clearInterval(interval);
+}, [currentUser, addNotification]);
 
   // Daily reminder
   useEffect(() => {
-    if (!currentUser || !userProfile) return;
+    if (!currentUser?.uid || myTasks.length === 0) return;
 
-    const today = new Date().toDateString();
-    const lastReminder = localStorage.getItem(`lastReminder_${currentUser.uid}`);
+      // Debounce localStorage writes to reduce frequency
+  const timeoutId = setTimeout(() => {
+    localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(myTasks));
+  }, 1000); // Wait 1 second before saving
 
-    if (lastReminder !== today && dailyTasksRemaining > 0) {
-      const startedToday = myTasks.filter(
-        t => new Date(t.startedAt).toDateString() === today
-      ).length;
+  return () => clearTimeout(timeoutId);
+}, [myTasks, currentUser?.uid]);
 
-      if (startedToday === 0) {
-        addNotification(
-          `You still have ${dailyTasksRemaining} task${dailyTasksRemaining > 1 ? 's' : ''} available today. Start now and keep earning!`
-        );
-      } else if (startedToday < dailyTasksRemaining) {
-        addNotification(
-          `You have ${dailyTasksRemaining - startedToday} pending task${dailyTasksRemaining - startedToday > 1 ? 's' : ''} for today. Finish them to stay on track!`
-        );
-      }
-
-      localStorage.setItem(`lastReminder_${currentUser.uid}`, today);
-    }
-  }, [currentUser, userProfile, dailyTasksRemaining, myTasks, addNotification]);
 
   const startTask = async (task) => {
     const maxTasks = userProfile?.isVIP
@@ -386,36 +395,32 @@ useEffect(() => {
     toast.info(`STK push sent to ${mpesaNumber}…`, { autoClose: 8000 });
 
     // Start polling
-    poll = setInterval(async () => {
-      try {
-        const statusRes = await fetch(
-          `/api/transaction-status?reference=${encodeURIComponent(payheroReference)}`
-        );
-        const { success, status, error } = await statusRes.json();
+    // AFTER (less aggressive 5-second polling):
+poll = setInterval(async () => {
+  try {
+    const statusRes = await fetch(
+      `/api/transaction-status?reference=${encodeURIComponent(payheroReference)}`
+    );
+    const { success, status, error } = await statusRes.json();
 
-        if (!success) throw new Error(error || 'Status check failed');
+    if (!success) throw new Error(error || 'Status check failed');
 
-        if (status === 'SUCCESS') {
-          clearInterval(poll);
-          toast.success('Payment confirmed! Upgrading your account...');
-
-          // Finalize upgrade and close modal
-          await finalizeVIPUpgrade(); // This already closes modal + resets state
-
-          // Critical: Ensure processing stops and modal closes even if something fails later
-          setIsProcessing(false);
-          setShowVIPModal(false);
-        } 
-        else if (['FAILED', 'CANCELLED'].includes(status)) {
-          clearInterval(poll);
-          toast.error('Payment failed or was cancelled');
-          setIsProcessing(false); // Allow retry
-        }
-      } catch (e) {
-        console.error('Polling error:', e);
-        // Don't kill the loop on transient errors
-      }
-    }, 3000);
+    if (status === 'SUCCESS') {
+      clearInterval(poll);
+      toast.success('Payment confirmed! Upgrading your account...');
+      await finalizeVIPUpgrade();
+      setIsProcessing(false);
+      setShowVIPModal(false);
+    } 
+    else if (['FAILED', 'CANCELLED'].includes(status)) {
+      clearInterval(poll);
+      toast.error('Payment failed or was cancelled');
+      setIsProcessing(false);
+    }
+  } catch (e) {
+    console.error('Polling error:', e);
+  }
+}, 5000); // Changed from 3000 to 5000
 
     // Timeout after 2 minutes
     setTimeout(() => {
