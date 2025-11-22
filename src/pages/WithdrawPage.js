@@ -14,6 +14,7 @@ import {
   limit,
   updateDoc,
   increment,
+  getDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast, ToastContainer } from 'react-toastify';
@@ -30,6 +31,7 @@ import {
   Calendar,
   X,
   Check,
+  Lock,
 } from 'lucide-react';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -76,15 +78,15 @@ const WithdrawPage = () => {
     minTasks: false,
   });
 
-  // Fixed: getStatusIcon inside component, no external config
+  // Fixed: getStatusIcon inside component
   const getStatusIcon = useCallback((status) => {
     const config = {
-      pending: { icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50' },
-      completed: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
-      failed: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
-    }[status] || { icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50' };
+      pending: { Icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50' },
+      completed: { Icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50' },
+      failed: { Icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
+    }[status] || { Icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50' };
 
-    const Icon = config.icon;
+    const Icon = config.Icon;
     return (
       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.color}`}>
         <Icon className="w-3.5 h-3.5" />
@@ -93,37 +95,49 @@ const WithdrawPage = () => {
     );
   }, []);
 
+  // PROTECTED ROUTE + AUTH + DATA LOADING (FINAL VERSION)
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (currentUser) => {
+    const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser === null) return; // still loading
+
       if (!currentUser) {
-        navigate('/signin');
+        toast.info('Please sign in to withdraw your earnings', {
+          icon: <Lock className="w-5 h-5" />,
+          position: 'top-center',
+          autoClose: 4000,
+          style: { background: '#1e293b', color: '#e2e8f0' },
+        });
+        navigate('/signin', { replace: true });
         return;
       }
+
       setUser(currentUser);
 
       const userRef = doc(db, 'users', currentUser.uid);
       const unsubUser = onSnapshot(userRef, (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setProfile(data);
-          // Use currentbalance instead of balance
-          setBalance(data.currentbalance || 0);
-          setPhone(data.phone || '');
+        if (!snap.exists()) {
+          toast.error('Profile not found');
+          navigate('/dashboard');
+          return;
         }
+        const data = snap.data();
+        setProfile(data);
+        setBalance(data.currentbalance || 0);
+        setPhone(data.phone || '');
       });
 
       const q = query(
         collection(db, 'withdrawals'),
         where('userId', '==', currentUser.uid),
         orderBy('requestedAt', 'desc'),
-        limit(5)
+        limit(10)
       );
       const unsubWithdrawals = onSnapshot(q, (snapshot) => {
         setWithdrawals(
           snapshot.docs.map((d) => ({
             id: d.id,
             ...d.data(),
-            requestedAt: d.data().requestedAt?.toDate(),
+            requestedAt: d.data().requestedAt?.toDate() || new Date(),
           }))
         );
       });
@@ -137,9 +151,9 @@ const WithdrawPage = () => {
     return () => unsubAuth();
   }, [navigate]);
 
+  // Eligibility check
   useEffect(() => {
     if (!profile) return;
-    // Use ApprovedTasks instead of completedTasks
     const tasksDone = profile.ApprovedTasks || 0;
     const amountOk = balance >= MIN_AFTER_FEE_USD;
     setEligibility({
@@ -155,7 +169,6 @@ const WithdrawPage = () => {
     if (isNaN(usd) || usd <= 0) return toast.error('Enter valid amount');
 
     const isThu = isThursday();
-    // Use ApprovedTasks instead of completedTasks
     const tasksDone = profile?.ApprovedTasks || 0;
     const amountValid = usd >= MIN_AFTER_FEE_USD && balance >= usd;
     const tasksValid = tasksDone >= MIN_COMPLETED_TASKS;
@@ -183,6 +196,17 @@ const WithdrawPage = () => {
 
     setLoading(true);
     try {
+      // DOUBLE-CHECK BALANCE BEFORE DEDUCTING (critical security)
+      const userDoc = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDoc);
+      const currentBalance = userSnap.data()?.currentbalance || 0;
+
+      if (currentBalance < usd) {
+        toast.error('Insufficient balance');
+        setLoading(false);
+        return;
+      }
+
       const withdrawalId = `${user.uid}_${Date.now()}`;
       const payload = {
         userId: user.uid,
@@ -198,16 +222,12 @@ const WithdrawPage = () => {
       if (method === 'paypal') payload.paypalEmail = paypalEmail;
       if (method === 'bank') payload.bankDetails = bankDetails;
 
-      // Create withdrawal request
       await setDoc(doc(db, 'withdrawals', withdrawalId), payload);
-
-      // Deduct from user's currentbalance
-      await updateDoc(doc(db, 'users', user.uid), {
-        currentbalance: increment(-usd),
-      });
+      await updateDoc(userDoc, { currentbalance: increment(-usd) });
 
       toast.success('Withdrawal requested! Paid within 24 hrs.');
       resetForm();
+      setAmount('');
     } catch (err) {
       console.error(err);
       toast.error('Failed. Try again.');
@@ -240,7 +260,7 @@ const WithdrawPage = () => {
     <>
       <ToastContainer position="top-center" theme="light" autoClose={3000} />
 
-      {/* Modal */}
+      {/* Eligibility Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
@@ -254,33 +274,27 @@ const WithdrawPage = () => {
               <div className="flex items-center gap-3">
                 {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
                 <div>
-                  <p className="font-medium">Withdrawal Day Restriction</p>
+                  <p className="font-medium">Withdrawal Day</p>
                   <p className="text-xs text-slate-500">
-                    {eligibility.isThursday
-                      ? 'Today is Thursday – withdrawals are permitted.'
-                      : 'Withdrawals are only allowed on Thursdays.'}
+                    {eligibility.isThursday ? 'Today is Thursday' : 'Only allowed on Thursdays'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
                 <div>
-                  <p className="font-medium">Minimum Withdrawal Amount</p>
+                  <p className="font-medium">Minimum Amount</p>
                   <p className="text-xs text-slate-500">
-                    {eligibility.minAmount
-                      ? 'Amount meets the minimum requirement.'
-                      : `The entered amount ($${amount || '0'}) is below the minimum of $10.20 after fees. Current balance: $${balance.toFixed(2)}.`}
+                    {eligibility.minAmount ? 'Meets minimum' : `Need at least $${MIN_AFTER_FEE_USD}`}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
                 <div>
-                  <p className="font-medium">Task Completion Requirement</p>
+                  <p className="font-medium">Tasks Completed</p>
                   <p className="text-xs text-slate-500">
-                    {eligibility.minTasks
-                      ? 'You have completed enough tasks to withdraw.'
-                      : `You need at least 15 completed tasks. You have completed ${profile.ApprovedTasks || 0}.`}
+                    {eligibility.minTasks ? 'Enough tasks done' : `Need ${MIN_COMPLETED_TASKS} tasks`}
                   </p>
                 </div>
               </div>
@@ -295,7 +309,7 @@ const WithdrawPage = () => {
         </div>
       )}
 
-      {/* Main UI */}
+      {/* Main UI - Your Beautiful Design */}
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 py-6 px-4">
         <div className="max-w-4xl mx-auto">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-blue-100 hover:text-white mb-6 text-sm">
@@ -317,6 +331,7 @@ const WithdrawPage = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Your entire beautiful form stays 100% unchanged */}
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Amount (USD) – Min $10.20 after fee
@@ -456,6 +471,7 @@ const WithdrawPage = () => {
               </div>
             </div>
 
+            {/* Sidebar */}
             <div className="space-y-5">
               <div className="bg-white p-5 rounded-2xl shadow border border-slate-200">
                 <h3 className="font-bold flex items-center gap-2 mb-3">

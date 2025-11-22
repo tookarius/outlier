@@ -1,5 +1,5 @@
-// src/pages/UserDashboard.js
-import React, { useEffect, useState, useCallback } from 'react';
+ // src/pages/UserDashboard.js
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   doc,
@@ -10,31 +10,10 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import {
-  DollarSign,
-  Calendar,
-  Activity,
-  Briefcase,
-  TrendingUp,
-  CheckCircle,
-  ChevronRight,
-  LogOut,
-  Menu,
-  X,
-  Crown,
-  Smartphone,
-  PlayCircle,
-  RefreshCw,
-  CheckCircle2,
-  Bell,
-  Zap,
-  Clock,
-  Headphones,
-  Shield,
-  Gift,
-  Sparkles,
-  Lock,
-  User,
-  Star
+  DollarSign, Calendar, Activity, Briefcase, TrendingUp, CheckCircle,
+  ChevronRight, LogOut, Menu, X, Crown, Smartphone, PlayCircle,
+  RefreshCw, CheckCircle2, Bell, Zap, Clock, Headphones, Shield,
+  Gift, Sparkles, Lock, User, Star
 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import Confetti from 'react-confetti';
@@ -44,9 +23,7 @@ import { useAuth } from '../context/AuthContext';
 
 const EXCHANGE_RATE = 129.00;
 const formatKES = (usd) =>
-  `Ksh.${(usd * EXCHANGE_RATE)
-    .toFixed(2)
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  `Ksh.${(usd * EXCHANGE_RATE).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 const VIP_CONFIG = {
   Bronze: { priceUSD: 1, dailyTasks: 4 },
@@ -86,33 +63,15 @@ const difficultyColors = {
 };
 
 const statusConfig = {
-  'in-progress': {
-    label: 'In Progress',
-    icon: PlayCircle,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  completed: {
-    label: 'Under Review',
-    icon: RefreshCw,
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-  },
-  approved: {
-    label: 'Approved',
-    icon: CheckCircle2,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-  },
+  'in-progress': { label: 'In Progress', icon: PlayCircle, color: 'text-blue-600', bg: 'bg-blue-50' },
+  completed: { label: 'Under Review', icon: RefreshCw, color: 'text-orange-600', bg: 'bg-orange-50' },
+  approved: { label: 'Approved', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50' },
 };
 
 const normalizePhoneNumber = (input) => {
   if (!input) return null;
   const cleaned = input.replace(/\D/g, '');
-
-  if (/^0[71]\d{8}$/.test(input)) {
-    return `254${cleaned.slice(1)}`;
-  }
+  if (/^0[71]\d{8}$/.test(input)) return `254${cleaned.slice(1)}`;
   if (/^\+254[71]\d{8}$/.test(input)) return cleaned;
   if (/^254[71]\d{8}$/.test(cleaned)) return cleaned;
   return null;
@@ -126,11 +85,10 @@ const UserDashboard = () => {
   const navigate = useNavigate();
 
   const [userProfile, setUserProfile] = useState(null);
-  const [dailyTasksRemaining, setDailyTasksRemaining] = useState(1);
   const [myTasks, setMyTasks] = useState([]);
   const [showVIPModal, setShowVIPModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // FIXED
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedVIP, setSelectedVIP] = useState('');
   const [mpesaNumber, setMpesaNumber] = useState('');
@@ -139,203 +97,155 @@ const UserDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Countdown timer
+  const hasResetToday = useRef(false);
+
+  // DERIVED VALUES
+  const hasCompletedOnboarding = userProfile?.hasDoneOnboardingTask || false;
+  const onboardingTask = availableTasks[0];
+  const tasksToShow = hasCompletedOnboarding ? availableTasks : [onboardingTask];
+  const categories = ['all', ...new Set(tasksToShow.map(t => t.category))];
+  const filteredTasks = selectedCategory === 'all' ? tasksToShow : tasksToShow.filter(t => t.category === selectedCategory);
+
+  const myTaskMap = {};
+  myTasks.forEach(t => { myTaskMap[t.id.split('_')[0]] = t; });
+
+  const todayTasks = myTasks.filter(t => new Date(t.startedAt).toDateString() === new Date().toDateString());
+  const approvedCount = todayTasks.filter(t => t.status === 'approved').length;
+  const todayEarnings = todayTasks.filter(t => t.status === 'approved').reduce((s, t) => s + t.paymentAmount, 0);
+
+  const lastThursday = getLastThursday();
+  const nextThursday = getNextThursday();
+  const dateRange = `${lastThursday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${nextThursday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+
+  const todayCompletedCount = myTasks.filter(t =>
+    new Date(t.startedAt).toDateString() === new Date().toDateString() &&
+    ['completed', 'approved'].includes(t.status)
+  ).length;
+
+  const maxDaily = userProfile?.isVIP
+    ? VIP_CONFIG[userProfile.tier?.replace('VIP', '')]?.dailyTasks || 1
+    : 1;
+
+  const dailyLimitReached = todayCompletedCount >= maxDaily;
+
+  // EFFECTS
   useEffect(() => {
     const timer = setInterval(() => {
-      const diff = getNextThursday() - new Date();
-      setTimeLeft(diff > 0 ? diff : 0);
+      setTimeLeft(getNextThursday() - new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Memoized addNotification
   const addNotification = useCallback((msg) => {
     setNotifications(prev => {
-      const newNotif = {
-        id: Date.now().toString(),
-        message: msg,
-        timestamp: new Date().toISOString(),
-        read: false,
-      };
-      const updated = [newNotif, ...prev];
-      if (currentUser?.uid) {
-        localStorage.setItem(`notifications_${currentUser.uid}`, JSON.stringify(updated));
-      }
+      const updated = [{ id: Date.now().toString(), message: msg, timestamp: new Date().toISOString(), read: false }, ...prev];
+      if (currentUser?.uid) localStorage.setItem(`notifications_${currentUser.uid}`, JSON.stringify(updated));
       return updated;
     });
   }, [currentUser?.uid]);
 
-  // Load user profile and tasks
-  // Load user profile and tasks
-useEffect(() => {
-  if (!currentUser) return;
-
-  // Track if we've already done the daily reset check this session
-    let hasCheckedReset = false;
-    let isInitialLoad = true;
-
-   const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    setUserProfile(data);
-
-    const today = new Date().toLocaleDateString('en-CA');
-    const lastReset = data.lastTaskResetDate?.toDate?.().toLocaleDateString('en-CA') || null;
-    const isVIP = data.isVIP || false;
-    const tier = data.tier?.replace('VIP', '') || '';
-    const maxTasks = isVIP ? VIP_CONFIG[tier]?.dailyTasks || 1 : 1;
-
-    // Only check for reset on FIRST snapshot (page load) or if day actually changed
-    if (isInitialLoad && lastReset !== today && !hasCheckedReset) {
-      hasCheckedReset = true; // Prevent multiple reset attempts
-      isInitialLoad = false;
-      
-      setDailyTasksRemaining(maxTasks);
-      
-       // Single write operation for daily reset
-      updateDoc(doc(db, 'users', currentUser.uid), {
-        dailyTasksRemaining: maxTasks,
-        lastTaskResetDate: serverTimestamp(),
-      }).catch(err => {
-        console.error('Failed to reset daily tasks:', err);
-        // Fallback to existing value if write fails
-        setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
-      });
-    } else {
-      isInitialLoad = false;
-      // Just sync with the database value - no writes
-      setDailyTasksRemaining(data.dailyTasksRemaining ?? maxTasks);
-    }
-  });
-
- const saved = localStorage.getItem(`myTasks_${currentUser.uid}`);
-  if (saved) setMyTasks(JSON.parse(saved));
-
-  const savedNotifs = localStorage.getItem(`notifications_${currentUser.uid}`);
-  if (savedNotifs) setNotifications(JSON.parse(savedNotifs));
-
-  return () => unsub();
-}, [currentUser]);
-
-  // Persist tasks
   useEffect(() => {
-    if (currentUser?.uid && myTasks.length) {
-      localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(myTasks));
+    if (!currentUser) {
+      navigate('/signin', { replace: true });
+      return;
     }
-  }, [myTasks, currentUser?.uid]);
 
-  // Auto-approval simulation with onboarding detection
+    const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      setUserProfile(data);
+
+      const today = new Date().toLocaleDateString('en-CA');
+      const lastReset = data.lastTaskResetDate?.toDate?.().toLocaleDateString('en-CA');
+      const maxTasks = data.isVIP ? VIP_CONFIG[data.tier?.replace('VIP', '')]?.dailyTasks || 1 : 1;
+
+      if (!hasResetToday.current && lastReset !== today) {
+        hasResetToday.current = true;
+        updateDoc(doc(db, 'users', currentUser.uid), {
+          dailyTasksRemaining: maxTasks,
+          lastTaskResetDate: serverTimestamp(),
+        }).catch(() => {});
+      }
+    });
+
+    const savedTasks = localStorage.getItem(`myTasks_${currentUser.uid}`);
+    if (savedTasks) setMyTasks(JSON.parse(savedTasks));
+
+    const savedNotifs = localStorage.getItem(`notifications_${currentUser.uid}`);
+    if (savedNotifs) setNotifications(JSON.parse(savedNotifs));
+
+    return () => unsub();
+  }, [currentUser, navigate]);
+
+  // AUTO-APPROVAL (Onboarding = instant)
   useEffect(() => {
     if (!currentUser) return;
 
-     const interval = setInterval(() => {
-    setMyTasks((prev) => {
-      const updates = []; // Collect all tasks needing Firebase updates
-      let localChanged = false;
+    const interval = setInterval(() => {
+      setMyTasks(prevTasks => {
+        let changed = false;
+        const toApproveNow = [];
 
-       const updated = prev.map((task) => {
-          const isOnboardingTask = task.id.startsWith(availableTasks[0]?.id);
-        
-        if (task.status === 'completed' && !task.approvalScheduled) {
-          const approvalDelay = isOnboardingTask 
-            ? Math.random() * 30000 + 30000  // 30-60 seconds
-            : Math.random() * 240000 + 60000; // 1-5 minutes
-          
-          task.approvalScheduled = Date.now() + approvalDelay;
-          localChanged = true;
-        }
+        const updatedTasks = prevTasks.map(task => {
+          if (task.status !== 'completed') return task;
 
-          if (
-          task.approvalScheduled &&
-          Date.now() >= task.approvalScheduled &&
-          task.status !== 'approved'
-        ) {
-          task.status = 'approved';
-          task.approvedAt = new Date();
-          localChanged = true;
+          const isOnboarding = task.id.startsWith(availableTasks[0]?.id);
 
-           // Add to batch update list instead of immediate write
-          updates.push({
-            task,
-            isOnboardingTask
-          });
-        }
-        return task;
-      });
-
-       // Perform ALL Firebase updates in a single batch
-      if (updates.length > 0) {
-        // Calculate total earnings for single update
-        const totalEarnings = updates.reduce((sum, u) => sum + u.task.paymentAmount, 0);
-        const hasOnboarding = updates.some(u => u.isOnboardingTask);
-
-         // SINGLE Firebase write for all approved tasks
-        updateDoc(doc(db, 'users', currentUser.uid), {
-          currentbalance: increment(totalEarnings),
-          thisMonthEarned: increment(totalEarnings),
-          totalEarned: increment(totalEarnings),
-          ApprovedTasks: increment(updates.length),
-          ...(hasOnboarding && { hasDoneOnboardingTask: true })
-        }).catch(err => console.error('Batch approval failed:', err));
-
-            // Show notifications and confetti
-        updates.forEach(({ task, isOnboardingTask }) => {
-          toast.success(`+$${task.paymentAmount.toFixed(2)} approved!`, {
-            icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-          });
-
-          if (isOnboardingTask) {
-            addNotification(
-              `🎉 Congratulations! You've completed your onboarding task and earned $${task.paymentAmount.toFixed(2)}! All tasks are now unlocked.`
-            );
-          } else {
-            addNotification(
-              `You have been paid $${task.paymentAmount.toFixed(2)}! Task "${task.title}" has been approved successfully.`
-            );
+          if (isOnboarding && !userProfile?.hasDoneOnboardingTask) {
+            task.status = 'approved';
+            task.approvedAt = new Date();
+            toApproveNow.push(task);
+            changed = true;
+          } else if (!task.approvalScheduled) {
+            task.approvalScheduled = Date.now() + 90000 + Math.random() * 180000;
+            changed = true;
+          } else if (task.approvalScheduled && Date.now() >= task.approvalScheduled) {
+            task.status = 'approved';
+            task.approvedAt = new Date();
+            toApproveNow.push(task);
+            changed = true;
           }
+          return task;
         });
-         if (updates.length > 0) {
+
+        if (toApproveNow.length > 0) {
+          const total = toApproveNow.reduce((s, t) => s + t.paymentAmount, 0);
+          const hasOnboarding = toApproveNow.some(t => t.id.startsWith(availableTasks[0]?.id));
+
+          updateDoc(doc(db, 'users', currentUser.uid), {
+            currentbalance: increment(total),
+            thisMonthEarned: increment(total),
+            totalEarned: increment(total),
+            ApprovedTasks: increment(toApproveNow.length),
+            ...(hasOnboarding && { hasDoneOnboardingTask: true })
+          });
+
+          toApproveNow.forEach(task => {
+            const msg = hasOnboarding
+              ? `Welcome! $${task.paymentAmount.toFixed(2)} approved instantly!`
+              : `+$${task.paymentAmount.toFixed(2)} approved!`;
+            toast.success(msg);
+            addNotification(msg);
+          });
+
           setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 4000);
+          setTimeout(() => setShowConfetti(false), 6000);
         }
-      }
 
-     // Only update localStorage if something actually changed
-      if (localChanged && currentUser?.uid) {
-        localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updated));
-      }
+        if (changed) {
+          localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updatedTasks));
+        }
 
-      return updated;
-    });
-  }, 60000); // Changed from 5000 to 60000 (60 seconds)
+        return updatedTasks;
+      });
+    }, 5000);
 
-  return () => clearInterval(interval);
-}, [currentUser, addNotification]);
+    return () => clearInterval(interval);
+  }, [currentUser, userProfile?.hasDoneOnboardingTask, addNotification]);
 
-  // Daily reminder
-  useEffect(() => {
-    if (!currentUser?.uid || myTasks.length === 0) return;
-
-      // Debounce localStorage writes to reduce frequency
-  const timeoutId = setTimeout(() => {
-    localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(myTasks));
-  }, 1000); // Wait 1 second before saving
-
-  return () => clearTimeout(timeoutId);
-}, [myTasks, currentUser?.uid]);
-
-
-  const startTask = async (task) => {
-    const maxTasks = userProfile?.isVIP
-      ? VIP_CONFIG[userProfile.tier?.replace('VIP', '')]?.dailyTasks || 1
-      : 1;
-
-    const usedToday = myTasks.filter(
-      (t) => new Date(t.startedAt).toDateString() === new Date().toDateString() &&
-             ['completed', 'approved'].includes(t.status)
-    ).length;
-
-    if (usedToday >= maxTasks) {
+  // FUNCTIONS
+  const startTask = (task) => {
+    if (dailyLimitReached) {
       setShowVIPModal(true);
       return;
     }
@@ -349,181 +259,109 @@ useEffect(() => {
       totalQuestions: task.questions.length,
     };
 
-    setMyTasks((prev) => [...prev, newTask]);
-
-    toast.success('Task started', {
-      icon: <Briefcase className="w-5 h-5 text-blue-600" />,
+    setMyTasks(prev => {
+      const updated = [...prev, newTask];
+      localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(updated));
+      return updated;
     });
 
+    toast.success('Task Started!', { icon: <Briefcase className="w-5 h-5" /> });
     navigate(`/working/${task.id}`);
   };
 
   const markAllRead = () => {
     const updated = notifications.map(n => ({ ...n, read: true }));
     setNotifications(updated);
-    if (currentUser?.uid) {
-      localStorage.setItem(`notifications_${currentUser.uid}`, JSON.stringify(updated));
-    }
+    localStorage.setItem(`notifications_${currentUser.uid}`, JSON.stringify(updated));
   };
 
   const handleRealVIPUpgrade = async () => {
-  if (!selectedVIP) return toast.error('Select a VIP tier');
-  const normalized = normalizePhoneNumber(mpesaNumber);
-  if (!normalized || !isValidMpesaNumber(mpesaNumber))
-    return toast.error('Invalid M-Pesa number');
+    if (!selectedVIP) return toast.error('Select a VIP tier');
+    const normalized = normalizePhoneNumber(mpesaNumber);
+    if (!normalized || !isValidMpesaNumber(mpesaNumber)) return toast.error('Invalid M-Pesa number');
 
-  setIsProcessing(true);
-  const clientReference = `VIP_${currentUser.uid}_${Date.now()}`;
-  const amount = VIP_CONFIG[selectedVIP].priceUSD * 129;
-  let poll = null;
+    setIsProcessing(true);
+    const clientReference = `VIP_${currentUser.uid}_${Date.now()}`;
+    const amount = VIP_CONFIG[selectedVIP].priceUSD * 129;
 
-  try {
-    const init = await fetch('/api/stk-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phoneNumber: normalized,
-        amount,
-        reference: clientReference,
-      }),
-    });
-    const { success, payheroReference, error } = await init.json();
+    try {
+      const res = await fetch('/api/stk-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: normalized, amount, reference: clientReference }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'STK push failed');
 
-    if (!success) throw new Error(error || 'STK push failed');
-    if (!payheroReference) throw new Error('Missing PayHero reference');
+      toast.info(`STK push sent to ${mpesaNumber}...`, { autoClose: 10000 });
 
-    toast.info(`STK push sent to ${mpesaNumber}…`, { autoClose: 8000 });
+      const poll = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/transaction-status?reference=${encodeURIComponent(data.payheroReference)}`);
+          const statusData = await statusRes.json();
 
-    // Start polling
-    // AFTER (less aggressive 5-second polling):
-poll = setInterval(async () => {
-  try {
-    const statusRes = await fetch(
-      `/api/transaction-status?reference=${encodeURIComponent(payheroReference)}`
-    );
-    const { success, status, error } = await statusRes.json();
+          if (statusData.status === 'SUCCESS') {
+            clearInterval(poll);
+            toast.success('Payment confirmed! Upgrading...');
+            await finalizeVIPUpgrade();
+          } else if (['FAILED', 'CANCELLED'].includes(statusData.status)) {
+            clearInterval(poll);
+            toast.error('Payment failed');
+            setIsProcessing(false);
+          }
+        } catch (e) { console.error(e); }
+      }, 5000);
 
-    if (!success) throw new Error(error || 'Status check failed');
-
-    if (status === 'SUCCESS') {
-      clearInterval(poll);
-      toast.success('Payment confirmed! Upgrading your account...');
-      await finalizeVIPUpgrade();
-      setIsProcessing(false);
-      setShowVIPModal(false);
-    } 
-    else if (['FAILED', 'CANCELLED'].includes(status)) {
-      clearInterval(poll);
-      toast.error('Payment failed or was cancelled');
-      setIsProcessing(false);
-    }
-  } catch (e) {
-    console.error('Polling error:', e);
-  }
-}, 5000); // Changed from 3000 to 5000
-
-    // Timeout after 2 minutes
-    setTimeout(() => {
-      if (poll) {
+      setTimeout(() => {
         clearInterval(poll);
         if (isProcessing) {
-          toast.warn('Payment timed out. Check your phone and try again.');
+          toast.warn('Timed out');
           setIsProcessing(false);
         }
-      }
-    }, 120_000);
+      }, 120000);
 
-  } catch (e) {
-    toast.error(e.message || 'Upgrade failed');
-    setIsProcessing(false);
-  }
-};
+    } catch (e) {
+      toast.error(e.message || 'Upgrade failed');
+      setIsProcessing(false);
+    }
+  };
 
   const finalizeVIPUpgrade = async () => {
-  const newMax = VIP_CONFIG[selectedVIP].dailyTasks;
+    const newMax = VIP_CONFIG[selectedVIP].dailyTasks;
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      isVIP: true,
+      tier: `${selectedVIP}VIP`,
+      dailyTasksRemaining: newMax,
+      lastTaskResetDate: serverTimestamp(),
+      vipUpgradedAt: serverTimestamp(),
+    });
 
-  await updateDoc(doc(db, 'users', currentUser.uid), {
-    isVIP: true,
-    tier: `${selectedVIP}VIP`,
-    dailyTasksRemaining: newMax,
-    lastTaskResetDate: serverTimestamp(),
-    vipUpgradedAt: serverTimestamp(),
-  });
+    setUserProfile(prev => ({ ...prev, isVIP: true, tier: `${selectedVIP}VIP` }));
+    toast.success(`${selectedVIP} VIP Activated! ${newMax} tasks/day unlocked!`);
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 7000);
+    setShowVIPModal(false);
+    setIsProcessing(false);
+    setSelectedVIP('');
+    setMpesaNumber('');
+  };
 
-  setDailyTasksRemaining(newMax);
-  setUserProfile(prev => ({ ...prev, isVIP: true, tier: `${selectedVIP}VIP` }));
-
-  toast.success(`${selectedVIP} VIP Activated! ${newMax} tasks/day unlocked!`, {
-    icon: <Crown className="w-6 h-6 text-amber-500" />,
-  });
-
-  setShowConfetti(true);
-  setTimeout(() => setShowConfetti(false), 5000);
-
-  // Critical: Close modal and reset form
-  setShowVIPModal(false);
-  setSelectedVIP('');
-  setMpesaNumber('');
-  setIsProcessing(false); // Extra safety
-};
-
-  if (!currentUser) {
+  if (!currentUser || !userProfile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg text-blue-100">Redirecting to login…</p>
+          <p className="text-lg text-blue-100">Loading your dashboard…</p>
         </div>
       </div>
     );
   }
 
-  // Stats calculations
-  const todayTasks = myTasks.filter(
-    (t) => new Date(t.startedAt).toDateString() === new Date().toDateString()
-  );
-  const completedCount = todayTasks.filter((t) => t.status === 'completed').length;
-  const approvedCount = todayTasks.filter((t) => t.status === 'approved').length;
-  const todayEarnings = todayTasks
-    .filter((t) => t.status === 'approved')
-    .reduce((s, t) => s + t.paymentAmount, 0);
-
-  const maxTasks = userProfile?.isVIP
-    ? VIP_CONFIG[userProfile.tier?.replace('VIP', '')]?.dailyTasks || 1
-    : 1;
-  
-  const todayCompletedTasks = myTasks.filter(t => 
-    new Date(t.startedAt).toDateString() === new Date().toDateString() &&
-    ['completed', 'approved'].includes(t.status)
-  ).length;
-  
-  const progress = maxTasks > 0 ? (todayCompletedTasks / maxTasks) * 100 : 0;
-  
-  const lastThursday = getLastThursday();
-  const nextThursday = getNextThursday();
-  const dateRange = `${lastThursday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${nextThursday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-
-  const hasCompletedOnboarding = userProfile?.hasDoneOnboardingTask || false;
-  const onboardingTask = availableTasks[0];
-  
-  const tasksToShow = hasCompletedOnboarding ? availableTasks : [onboardingTask];
-  
-  const categories = ['all', ...new Set(tasksToShow.map((t) => t.category))];
-  const filteredTasks =
-    selectedCategory === 'all'
-      ? tasksToShow
-      : tasksToShow.filter((t) => t.category === selectedCategory);
-
-  const myTaskMap = {};
-  myTasks.forEach((t) => {
-    const originalId = t.id.split('_')[0];
-    myTaskMap[originalId] = t;
-  });
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {showConfetti && <Confetti recycle={false} numberOfPieces={200} gravity={0.3} />}
+      {showConfetti && <Confetti recycle={false} numberOfPieces={250} gravity={0.3} />}
 
+      {/* HEADER WITH MOBILE MENU TOGGLE - NOW WORKING */}
       <header className="bg-white/95 backdrop-blur-xl border-b border-amber-400/20 sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -546,24 +384,19 @@ poll = setInterval(async () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* User avatar + tier */}
               <div className="hidden sm:flex items-center justify-center px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                   {userProfile?.name?.[0] ?? <User className="w-4 h-4" />}
                 </div>
                 <div className="ml-2 text-left">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {userProfile?.name ?? 'User'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {userProfile?.tier ? userProfile.tier : 'Standard'}
-                  </p>
+                  <p className="text-sm font-semibold text-slate-900">{userProfile?.name ?? 'User'}</p>
+                  <p className="text-xs text-slate-500">{userProfile?.tier || 'Standard'}</p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowNotifications(true)}
-                className="relative p-2 rounded-lg hover:bg-slate-100 transition"
-              >
+              {/* Notifications & Logout */}
+              <button onClick={() => setShowNotifications(true)} className="relative p-2 rounded-lg hover:bg-slate-100">
                 <Bell className="w-5 h-5 text-slate-700" />
                 {notifications.some(n => !n.read) && (
                   <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
@@ -571,13 +404,8 @@ poll = setInterval(async () => {
               </button>
 
               <button
-                onClick={() =>
-                  auth.signOut().then(() => {
-                    localStorage.clear();
-                    navigate('/signin');
-                  })
-                }
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition"
+                onClick={() => auth.signOut().then(() => { localStorage.clear(); navigate('/signin'); })}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg"
               >
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -655,8 +483,8 @@ poll = setInterval(async () => {
           <p className="text-3xl font-black tracking-tight">
             ${(userProfile?.currentbalance ?? 0).toFixed(2)}
           </p>
-          <p className="text-lg font-bold text-amber-500 mt-1">
-            {formatKES(userProfile?.currentbalance ?? 0)}
+          <p className="text-sm font text-amber-500 mt-1">
+              {formatKES(userProfile?.currentbalance ?? 0)}
           </p>
         </div>
 
@@ -1061,6 +889,7 @@ poll = setInterval(async () => {
 
 
 
+    {/* Notifications */}
       {showNotifications && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-end p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
@@ -1068,33 +897,21 @@ poll = setInterval(async () => {
               <h3 className="font-bold text-lg text-slate-900">Notifications</h3>
               <div className="flex gap-2">
                 {notifications.some(n => !n.read) && (
-                  <button
-                    onClick={markAllRead}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
+                  <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline">
                     Mark all read
                   </button>
                 )}
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  className="p-1 hover:bg-slate-100 rounded"
-                >
+                <button onClick={() => setShowNotifications(false)} className="p-1 hover:bg-slate-100 rounded">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-
             <div className="p-4 space-y-3">
               {notifications.length === 0 ? (
                 <p className="text-center text-slate-500 py-8">No notifications yet.</p>
               ) : (
                 notifications.map(notif => (
-                  <div
-                    key={notif.id}
-                    className={`p-3 rounded-lg border ${
-                      notif.read ? 'bg-white border-slate-200' : 'bg-amber-50 border-amber-300'
-                    }`}
-                  >
+                  <div key={notif.id} className={`p-3 rounded-lg border ${notif.read ? 'bg-white border-slate-200' : 'bg-amber-50 border-amber-300'}`}>
                     <p className={`text-sm ${notif.read ? 'text-slate-700' : 'font-medium text-slate-900'}`}>
                       {notif.message}
                     </p>
@@ -1108,9 +925,13 @@ poll = setInterval(async () => {
           </div>
         </div>
       )}
+
       <ToastContainer position="bottom-right" theme="light" />
     </div>
   );
+
+
+  
 };
 
 export default UserDashboard;

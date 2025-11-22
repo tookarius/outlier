@@ -28,6 +28,22 @@ const Working = () => {
 
   const questions = task?.questions || [];
 
+    // PROTECTED ROUTE: Redirect unauthenticated users with a nice message
+  useEffect(() => {
+    if (currentUser === null) {
+      // Still loading auth state → do nothing
+      return;
+    }
+
+    if (!currentUser) {
+      toast.info('Please sign in to access your tasks', {
+        icon: 'Lock',
+        autoClose: 4000,
+      });
+      navigate('/signin', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   useEffect(() => {
     if (!taskId || !task || !currentUser) {
       toast.error('Invalid task or not logged in');
@@ -35,14 +51,32 @@ const Working = () => {
       return;
     }
 
+    // BLOCK RE-ENTRY TO ONBOARDING TASK — EVEN VIA BACK BUTTON, REFRESH, OR DIRECT URL
+    const isOnboardingTask = task.id === availableTasks[0]?.id;
     const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
-    const taskInstance = savedTasks.find(t => t.id.startsWith(taskId) && t.status === 'in-progress');
+    
+    const hasCompletedOnboarding = savedTasks.some(t =>
+      t.id.includes(task.id) && 
+      ['completed', 'approved'].includes(t.status)
+    );
+
+    if (isOnboardingTask && hasCompletedOnboarding) {
+      toast.success('Welcome back! Your onboarding is complete — all tasks are now unlocked!');
+      navigate('/dashboard', { replace: true }); // Removes the /working page from history
+      return;
+    }
+
+    // Normal flow — load in-progress task if exists
+    const taskInstance = savedTasks.find(t => 
+      t.id.startsWith(taskId) && t.status === 'in-progress'
+    );
 
     if (taskInstance) {
       setMyTaskInstance(taskInstance);
       const elapsed = Math.floor((new Date() - new Date(taskInstance.startedAt)) / 1000);
       setSeconds(elapsed);
     }
+
     setLoading(false);
   }, [taskId, task, currentUser, navigate]);
 
@@ -102,46 +136,58 @@ const Working = () => {
   const handlePrevious = () => setCurrentQuestion(p => Math.max(0, p - 1));
 
   const handleSubmit = async () => {
-    const missing = questions.filter(q => q.required && !isQuestionAnswered(q));
-    if (missing.length > 0) {
-      toast.error(`Please answer ${missing.length} required question(s)`);
-      return;
-    }
+  const missing = questions.filter(q => q.required && !isQuestionAnswered(q));
+  if (missing.length > 0) {
+    toast.error(`Please answer ${missing.length} required question(s)`);
+    return;
+  }
 
-    setUploading(true);
-    try {
-      const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
-      const taskInstanceId = myTaskInstance?.id || `${taskId}_${Date.now()}`;
+  setUploading(true);
+  try {
+    const savedTasks = JSON.parse(localStorage.getItem(`myTasks_${currentUser.uid}`) || '[]');
+    const taskInstanceId = myTaskInstance?.id || `${taskId}_${Date.now()}`;
 
-      const completedTask = {
-        id: taskInstanceId,
-        ...task,
-        status: 'completed',
-        startedAt: myTaskInstance?.startedAt || new Date(Date.now() - seconds * 1000),
-        completedAt: new Date(),
-        completedQuestions: questions.length,
-        totalQuestions: questions.length,
-        approvalScheduled: Date.now() + (Math.random() * 240000 + 60000),
-        answers,
-      };
+    // CRITICAL: Determine if this is the onboarding task
+    const isOnboardingTask = taskId === availableTasks[0]?.id;
 
-      const index = savedTasks.findIndex(t => t.id === taskInstanceId);
-      if (index >= 0) savedTasks[index] = completedTask;
-      else savedTasks.push(completedTask);
+    const completedTask = {
+      id: taskInstanceId,
+      ...task,
+      status: 'completed',
+      startedAt: myTaskInstance?.startedAt || new Date(Date.now() - seconds * 1000),
+      completedAt: new Date(),
+      completedQuestions: questions.length,
+      totalQuestions: questions.length,
+      answers,
+      // DO NOT set approvalScheduled for onboarding → instant approval
+      // Only set it for normal tasks
+      ...(isOnboardingTask ? {} : { approvalScheduled: Date.now() + 90000 + Math.random() * 120000 }),
+    };
 
-      localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(savedTasks));
+    const index = savedTasks.findIndex(t => t.id === taskInstanceId);
+    if (index >= 0) savedTasks[index] = completedTask;
+    else savedTasks.push(completedTask);
 
-      confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
-      toast.success('Task submitted successfully!');
+    localStorage.setItem(`myTasks_${currentUser.uid}`, JSON.stringify(savedTasks));
+
+    confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+    toast.success('Task submitted successfully!');
+
+    // Special message for onboarding
+    if (isOnboardingTask) {
+      toast.info('Checking your work... Almost done!', { autoClose: 8000 });
+    } else {
       toast.info('Payment will be processed in 1–5 minutes', { autoClose: 6000 });
-
-      setTimeout(() => navigate('/dashboard'), 3000);
-    } catch (err) {
-      toast.error('Submission failed');
-    } finally {
-      setUploading(false);
     }
-  };
+
+    setTimeout(() => navigate('/dashboard'), 2500);
+  } catch (err) {
+    console.error(err);
+    toast.error('Submission failed');
+  } finally {
+    setUploading(false);
+  }
+};
 
   const toggleTimer = () => {
     setIsActive(!isActive);

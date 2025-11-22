@@ -45,7 +45,7 @@ function SignInPage() {
           ? 'Invalid email or password.'
           : err.code === 'auth/too-many-requests'
           ? 'Too many attempts. Please try again later.'
-          : 'Failed to sign in. Check your connection and try again.'
+          : 'Failed to sign in. Check and try again.'
       );
     } finally {
       setLoading(false);
