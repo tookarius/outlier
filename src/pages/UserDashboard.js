@@ -21,14 +21,78 @@ import 'react-toastify/dist/ReactToastify.css';
 import availableTasks from '../data/availableTasks';
 import { useAuth } from '../context/AuthContext';
 
-const EXCHANGE_RATE = 129.00;
-const formatKES = (usd) =>
-  `Ksh.${(usd * EXCHANGE_RATE).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
+class ExchangeRateSimulator {
+  constructor() {
+    this.targetRate = 125.00;        // Slowly drifting central rate
+    this.currentRate = 125.00;
+    this.lastUpdate = Date.now();
+    
+    // Very small random daily bias (±0.15 KES per day max)
+    this.dailyBias = (Math.random() - 0.5) * 0.3;
+    this.updateCounter = 0;
+  }
+
+  getCurrentRate() {
+    const now = Date.now();
+    const secondsSinceLast = (now - this.lastUpdate) / 1000;
+
+    // Update every 15–45 seconds (smooth live feel)
+    if (secondsSinceLast > 15 + Math.random() * 30) {
+      this._updateRate();
+      this.lastUpdate = now;
+    }
+
+    return Math.round(this.currentRate * 10000) / 10000; // 4 decimal precision
+  }
+
+  _updateRate() {
+    this.updateCounter++;
+
+    // 1. Very small random tick (like real market noise)
+    const noise = (Math.random() - 0.5) * 0.06; // ±0.03 KES max per tick
+
+    // 2. Gentle pull toward a slowly moving target (mean reversion)
+    const distanceFromTarget = this.targetRate - this.currentRate;
+    const reversion = distanceFromTarget * 0.04; // 4% of gap closed per update
+
+    // 3. Slow daily trend (max ±0.15 KES per day)
+    const dayFraction = Date.now() / (86400 * 1000);
+    const trend = this.dailyBias * (dayFraction - Math.floor(dayFraction));
+
+    // Apply all forces
+    this.currentRate += noise + reversion + trend * 0.0001;
+
+    // Keep strictly inside 120.00 – 130.00
+    this.currentRate = Math.max(120.00, Math.min(130.00, this.currentRate));
+
+    // Every ~2 hours, slightly shift the target rate (simulates news/events)
+    if (this.updateCounter % 150 === 0) {
+      this.targetRate += (Math.random() - 0.5) * 1.5; // Small target drift
+      this.targetRate = Math.max(121, Math.min(129, this.targetRate));
+    }
+  }
+}
+
+// Single shared instance
+const exchangeRateSimulator = new ExchangeRateSimulator();
+
+// Public functions
+const getCurrentExchangeRate = () => exchangeRateSimulator.getCurrentRate();
+
+const formatKES = (usd) => {
+  const rate = getCurrentExchangeRate();
+  const kes = usd * rate;
+  const formatted = kes.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `Ksh.${formatted}`;
+};
+
+// Optional: Export if using modules
+// export { getCurrentExchangeRate, formatKES };
 const VIP_CONFIG = {
-  Bronze: { priceUSD: 1, dailyTasks: 4 },
-  Silver: { priceUSD: 4, dailyTasks: 7 },
-  Gold:   { priceUSD: 10, dailyTasks: 10 },
+  Bronze: { priceUSD: 0.99, dailyTasks: 4 },
+  Silver: { priceUSD: 3.99, dailyTasks: 7 },
+  Gold:   { priceUSD: 9.99, dailyTasks: 10 },
 };
 
 const getNextThursday = () => {
@@ -222,8 +286,8 @@ const UserDashboard = () => {
 
           toApproveNow.forEach(task => {
             const msg = hasOnboarding
-              ? `Welcome! $${task.paymentAmount.toFixed(2)} approved instantly!`
-              : `+$${task.paymentAmount.toFixed(2)} approved!`;
+              ? `Welcome! $${task.paymentAmount.toFixed(2)} for onboarding task approved successfully !`
+              : `+$${task.paymentAmount.toFixed(2)} for completed task approved!`;
             toast.success(msg);
             addNotification(msg);
           });
@@ -459,35 +523,53 @@ const UserDashboard = () => {
           </div>
         </div>
 
+
 <section className="mb-10">
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-xl border border-white/10">
       <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 via-transparent to-transparent" />
 
       <div className="relative z-10">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-slate-200">Financial Overview</h3>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-            <TrendingUp className="w-4 h-4" />
-            <span>Live</span>
-          </div>
-        </div>
+       <div className="flex items-center justify-between mb-5">
+  <h3 className="text-base font-semibold text-slate-200">Financial Overview</h3>
 
+  {/* Live Exchange Rate with RED pulsing dot */}
+  <p className="text-xs font-medium text-emerald-400 opacity-90">
+    <span className="inline-flex items-center gap-1.5">
+      {/* Red pulsing dot */}
+      <span className="relative flex">
+        <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-500 opacity-75"></span>
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+      </span>
+      <span>
+       Approx : 1 USD = {getCurrentExchangeRate().toFixed(4)} KES
+      </span>
+    </span>
+  </p>
+</div>
+
+        {/* Balance Card */}
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20">
           <div className="flex items-center justify-between mb-2">
-            <div>
-              <p className="text-sm text-slate-300">Available Balance ({dateRange})</p>
-            </div>
+            <p className="text-sm text-slate-300">
+              Available Balance ({dateRange})
+            </p>
             <DollarSign className="w-5 h-5 text-amber-400" />
           </div>
+
+          {/* USD Amount */}
           <p className="text-3xl font-black tracking-tight">
             ${(userProfile?.currentbalance ?? 0).toFixed(2)}
           </p>
-          <p className="text-sm font text-amber-500 mt-1">
-              {formatKES(userProfile?.currentbalance ?? 0)}
+
+          {/* KES Amount */}
+          <p className="text-sm font-medium text-amber-500 mt-1">
+            {formatKES(userProfile?.currentbalance ?? 0)}
           </p>
+
         </div>
 
+        {/* This Month & Today Earnings */}
         <div className="grid grid-cols-2 gap-4 mt-5">
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
             <p className="text-xs text-slate-400">This Month</p>
@@ -495,6 +577,7 @@ const UserDashboard = () => {
               +${(userProfile?.thisMonthEarned ?? 0).toFixed(2)}
             </p>
           </div>
+
           <div className="bg-white/5 rounded-lg p-4 border border-white/10">
             <p className="text-xs text-slate-400">Earned Today</p>
             <p className="text-xl font-bold text-blue-400 mt-1">
