@@ -261,53 +261,78 @@ const WithdrawPage = () => {
       <ToastContainer position="top-center" theme="light" autoClose={3000} />
 
       {/* Eligibility Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-start mb-5">
-              <h3 className="text-xl font-bold text-slate-900">Withdrawal Not Available</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                {eligibility.isThursday ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Withdrawal Day</p>
-                  <p className="text-xs text-slate-500">
-                    {eligibility.isThursday ? 'Today is Thursday' : 'Only allowed on Thursdays'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {eligibility.minAmount ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Minimum Amount</p>
-                  <p className="text-xs text-slate-500">
-                    {eligibility.minAmount ? 'Meets minimum' : `Need at least $${MIN_AFTER_FEE_USD}`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {eligibility.minTasks ? <Check className="w-5 h-5 text-green-600" /> : <X className="w-5 h-5 text-red-600" />}
-                <div>
-                  <p className="font-medium">Tasks Completed</p>
-                  <p className="text-xs text-slate-500">
-                    {eligibility.minTasks ? 'Enough tasks done' : `Need ${MIN_COMPLETED_TASKS} tasks`}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowModal(false)}
-              className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
-            >
-              Close
-            </button>
+{showModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="flex justify-between items-start mb-5">
+        <h3 className="text-xl font-bold text-slate-900">Withdrawal Requirements Not Met</h3>
+        <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <p className="text-sm text-slate-600 mb-4">
+        You’re almost there. Please review the requirements below to proceed with a withdrawal.
+      </p>
+
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          {eligibility.isThursday ? (
+            <Check className="w-5 h-5 text-green-600" />
+          ) : (
+            <X className="w-5 h-5 text-red-600" />
+          )}
+          <div>
+            <p className="font-medium">Eligible Day</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.isThursday ? "Today is a valid withdrawal day" : "Withdrawals are processed on Thursdays only"}
+            </p>
           </div>
         </div>
-      )}
+
+        <div className="flex items-center gap-3">
+          {eligibility.minAmount ? (
+            <Check className="w-5 h-5 text-green-600" />
+          ) : (
+            <X className="w-5 h-5 text-red-600" />
+          )}
+          <div>
+            <p className="font-medium">Minimum Balance</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.minAmount
+                ? "You have the required minimum amount"
+                : `A minimum of $${MIN_AFTER_FEE_USD} is required`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {eligibility.minTasks ? (
+            <Check className="w-5 h-5 text-green-600" />
+          ) : (
+            <X className="w-5 h-5 text-red-600" />
+          )}
+          <div>
+            <p className="font-medium">Task Completion</p>
+            <p className="text-xs text-slate-500">
+              {eligibility.minTasks
+                ? "You have completed the required number of tasks"
+                : `Complete at least ${MIN_COMPLETED_TASKS} tasks to qualify`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setShowModal(false)}
+        className="mt-6 w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
+
 
       {/* Main UI - Your Beautiful Design */}
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 py-6 px-4">
