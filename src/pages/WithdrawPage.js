@@ -57,17 +57,19 @@ const MIN_WITHDRAWAL_USD = 10.00;
 const MIN_COMPLETED_TASKS = 15;
 const FEE_PERCENTAGE = 2;
 
-const normalizeMpesa = (input) => {
+// === REPLACE THESE TWO FUNCTIONS AT THE TOP ===
+const normalizePhoneNumber = (input) => {
   if (!input) return null;
   const cleaned = input.replace(/\D/g, '');
-  if (/^0[71]/.test(input) && cleaned.length === 10) return `+254${cleaned.slice(1)}`;
-  if (/^\+254[71]/.test(input) && cleaned.length === 12) return `+254${cleaned.slice(3)}`;
-  if (/^254[71]/.test(cleaned) && cleaned.length === 12) return `+${cleaned}`;
+  if (/^0[71]\d{8}$/.test(input)) return `254${cleaned.slice(1)}`;
+  if (/^\+254[71]\d{8}$/.test(input)) return cleaned.slice(4); // removes +254 → 254...
+  if (/^254[71]\d{8}$/.test(cleaned)) return cleaned;
   return null;
 };
 
 const isValidMpesaNumber = (input) =>
-  /^0[17]\d{8}$/.test(input) || /^\+254[17]\d{8}$/.test(input);
+  /^0[17]\d{8}$/.test(input) || /^\+254[17]\d{8}$/.test(input) || /^254[17]\d{8}$/.test(input.replace(/\D/g, ''));
+// === END REPLACE ===
 
 const WithdrawPage = () => {
   const navigate = useNavigate();
@@ -316,97 +318,97 @@ const WithdrawPage = () => {
     }, 5000);
   };
 
-  // VIP Upgrade Functions
   const handleRealVIPUpgrade = async () => {
-    if (!selectedVIP) return toast.error('Select a VIP tier');
-    
-    const normalized = normalizeMpesa(mpesaNumber);
-    if (!normalized || !isValidMpesaNumber(mpesaNumber)) 
-      return toast.error('Invalid M-Pesa number');
+  if (!selectedVIP) return toast.error('Select a VIP tier');
 
-    setIsProcessing(true);
+  const normalized = normalizePhoneNumber(mpesaNumber);
+  if (!normalized || !isValidMpesaNumber(mpesaNumber)) {
+    return toast.error('Invalid M-Pesa number');
+  }
 
-    const liveRate = getCurrentExchangeRate();
-    const usdPrice = VIP_CONFIG[selectedVIP].priceUSD;
-    const kesAmount = Math.round(usdPrice * liveRate);
+  setIsProcessing(true);
 
-    const clientReference = `VIP_${user.uid}_${Date.now()}`;
+  const liveRate = getCurrentExchangeRate();
+  const usdPrice = VIP_CONFIG[selectedVIP].priceUSD;
+  const kesAmount = Math.round(usdPrice * liveRate);
 
-    try {
-      const res = await fetch('/api/stk-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNumber: normalized,
-          amount: kesAmount,
-          reference: clientReference,
-          description: `${selectedVIP} VIP Upgrade • $${usdPrice} USD @ ${liveRate.toFixed(2)} KES/USD`,
-        }),
-      });
+  const clientReference = `VIP_${user.uid}_${Date.now()}`;
 
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'STK push failed');
-
-      toast.info(
-        <div className="text-xs">
-          <p>STK push sent to {mpesaNumber}</p>
-          <p className="text-emerald-300 mt-1">
-            Amount: Ksh.{kesAmount.toLocaleString()} (≈ ${usdPrice} @ {liveRate.toFixed(2)} KES/USD)
-          </p>
-        </div>,
-        { autoClose: 15000 }
-      );
-
-      const poll = setInterval(async () => {
-        try {
-          const statusRes = await fetch(`/api/transaction-status?reference=${encodeURIComponent(data.payheroReference)}`);
-          const statusData = await statusRes.json();
-
-          if (statusData.status === 'SUCCESS') {
-            clearInterval(poll);
-            toast.success('Payment confirmed! VIP upgraded 🎉');
-            await finalizeVIPUpgrade();
-          } else if (['FAILED', 'CANCELLED'].includes(statusData.status)) {
-            clearInterval(poll);
-            toast.error('Payment failed or cancelled');
-            setIsProcessing(false);
-          }
-        } catch (e) {
-          console.error('Polling error:', e);
-        }
-      }, 5000);
-
-      setTimeout(() => {
-        clearInterval(poll);
-        if (isProcessing) {
-          toast.warn('Payment timed out — check your phone');
-          setIsProcessing(false);
-        }
-      }, 120000);
-
-    } catch (e) {
-      toast.error(e.message || 'Upgrade failed');
-      setIsProcessing(false);
-    }
-  };
-
-  const finalizeVIPUpgrade = async () => {
-    const newMax = VIP_CONFIG[selectedVIP].dailyTasks;
-    await updateDoc(doc(db, 'users', user.uid), {
-      isVIP: true,
-      tier: `${selectedVIP}VIP`,
-      dailyTasksRemaining: newMax,
-      lastTaskResetDate: serverTimestamp(),
-      vipUpgradedAt: serverTimestamp(),
+  try {
+    const res = await fetch('/api/stk-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phoneNumber: normalized,        // Now correctly 2547... (no +)
+        amount: kesAmount,
+        reference: clientReference,
+        description: `${selectedVIP} VIP Upgrade • $${usdPrice} USD @ ${liveRate.toFixed(2)} KES/USD`,
+      }),
     });
 
-    setProfile(prev => ({ ...prev, isVIP: true, tier: `${selectedVIP}VIP` }));
-    toast.success(`${selectedVIP} VIP Activated! ${newMax} tasks/day unlocked!`);
-    setShowVIPModal(false);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'STK push failed');
+
+    toast.info(
+      <div className="text-xs">
+        <p>STK push sent to {mpesaNumber}</p>
+        <p className="text-emerald-300 mt-1">
+          Amount: Ksh.{kesAmount.toLocaleString()} (≈ ${usdPrice} @ {liveRate.toFixed(2)} KES/USD)
+        </p>
+      </div>,
+      { autoClose: 15000 }
+    );
+
+    const poll = setInterval(async () => {
+      try {
+        const statusRes = await fetch(`/api/transaction-status?reference=${encodeURIComponent(data.payheroReference)}`);
+        const statusData = await statusRes.json();
+
+        if (statusData.status === 'SUCCESS') {
+          clearInterval(poll);
+          toast.success('Payment confirmed! VIP upgraded');
+          await finalizeVIPUpgrade();
+        } else if (['FAILED', 'CANCELLED'].includes(statusData.status)) {
+          clearInterval(poll);
+          toast.error('Payment failed or cancelled');
+          setIsProcessing(false);
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    }, 5000);
+
+    setTimeout(() => {
+      clearInterval(poll);
+      if (isProcessing) {
+        toast.warn('Payment timed out — check your phone');
+        setIsProcessing(false);
+      }
+    }, 120000);
+
+  } catch (e) {
+    toast.error(e.message || 'Upgrade failed');
     setIsProcessing(false);
-    setSelectedVIP('');
-    setMpesaNumber('');
-  };
+  }
+};
+
+  const finalizeVIPUpgrade = async () => {
+  const newMax = VIP_CONFIG[selectedVIP].dailyTasks;
+  await updateDoc(doc(db, 'users', user.uid), {
+    isVIP: true,
+    tier: `${selectedVIP}VIP`,
+    dailyTasksRemaining: newMax,
+    lastTaskResetDate: serverTimestamp(),
+    vipUpgradedAt: serverTimestamp(),
+  });
+
+  setProfile(prev => ({ ...prev, isVIP: true, tier: `${selectedVIP}VIP` }));
+  toast.success(`${selectedVIP} VIP Activated! ${newMax} tasks/day unlocked!`);
+  setShowVIPModal(false);
+  setIsProcessing(false);
+  setSelectedVIP('');
+  setMpesaNumber('');
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -436,7 +438,7 @@ const WithdrawPage = () => {
     }
 
     if (method === 'mpesa') {
-      const normalized = normalizeMpesa(phone);
+      const normalized = normalizePhoneNumber(phone);
       if (!normalized) return toast.error('Invalid M-Pesa number');
       setPhone(normalized);
     }
@@ -474,7 +476,7 @@ const WithdrawPage = () => {
         requestedAt: serverTimestamp(),
       };
 
-      if (method === 'mpesa') payload.phone = normalizeMpesa(phone);
+      if (method === 'mpesa') payload.phone = normalizePhoneNumber(phone);
       if (method === 'paypal') payload.paypalEmail = paypalEmail;
       if (method === 'bank') payload.bankDetails = bankDetails;
 
