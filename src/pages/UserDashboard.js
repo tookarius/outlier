@@ -10,10 +10,9 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../services/firebase';
 import {
-  DollarSign, Calendar, Activity, Briefcase, TrendingUp, CheckCircle,
+  DollarSign, Calendar, Activity, Briefcase, CheckCircle,
   ChevronRight, LogOut, Menu, X, Crown, Smartphone, PlayCircle,
-  RefreshCw, CheckCircle2, Bell, Zap, Clock, Headphones, Shield,
-  Gift, Sparkles, Lock, User, Star
+  RefreshCw, CheckCircle2, Bell, User, Star
 } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
 import Confetti from 'react-confetti';
