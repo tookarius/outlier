@@ -2,18 +2,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
-import {
-  doc,
-  setDoc,
-  serverTimestamp,
-  onSnapshot,
-  collection,
-  query,
+import { doc, 
+  getDoc, 
+  getDocs, 
+  updateDoc, 
+  increment, 
+  arrayUnion, 
+  serverTimestamp, 
+  query, 
+  collection, 
   where,
-  getDocs,
-  updateDoc,
-  increment,
-  getDoc,
+  setDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { toast, ToastContainer } from 'react-toastify';
@@ -107,6 +107,15 @@ const WithdrawPage = () => {
   const [animationStep, setAnimationStep] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [refreshingWithdrawals, setRefreshingWithdrawals] = useState(false);
+
+
+  const allRequirementsMet =
+  eligibility.kycComplete &&
+  eligibility.minAmount &&
+  eligibility.minTasks &&
+  (profile?.totalReferrals || 0) >= 5 &&
+  (profile?.vipReferrals || 0) >= 2;
+
 
   // Fixed: getStatusIcon inside component
   const getStatusIcon = useCallback((status) => {
@@ -392,8 +401,61 @@ const WithdrawPage = () => {
   }
 };
 
+const handleVIPReferralBonus = async (upgradedUserId, upgradedUserPhone) => {
+  try {
+    const upgradedUserSnap = await getDoc(doc(db, 'users', upgradedUserId));
+    const referredByCode = upgradedUserSnap.data()?.referredBy;
+
+    if (!referredByCode || !upgradedUserPhone) return;
+
+    const referrerQuery = await getDocs(
+      query(collection(db, 'users'), where('referralCode', '==', referredByCode))
+    );
+
+    if (referrerQuery.empty) return;
+
+    const referrerRef = referrerQuery.docs[0].ref;
+    const referrerSnap = await getDoc(referrerRef);
+    const referrerData = referrerSnap.data();
+
+    // Prevent duplicate VIP bonus
+    const alreadyHasThisVIP = (referrerData.recentReferrals || []).some(
+      (r) => r.phone === upgradedUserPhone && r.isVIP
+    );
+
+    if (alreadyHasThisVIP) {
+      console.log('VIP bonus already awarded for this user');
+      return;
+    }
+
+    // AWARD $10 BONUS + UPDATE recentReferrals WITH VIP STATUS
+    await updateDoc(referrerRef, {
+      vipReferrals: increment(1),
+      totalReferrals: increment(1), // in case they weren't counted before
+      referralEarnings: increment(10),
+      currentbalance: increment(10),
+
+      // THIS IS THE KEY LINE — adds/updates the referral in the list
+      recentReferrals: arrayUnion({
+        phone: upgradedUserPhone,
+        isVIP: true,
+        vipUpgraded: true,
+        date: serverTimestamp(),
+      }),
+    });
+
+    console.log('VIP Referral Bonus $10 awarded + list updated!');
+  } catch (err) {
+    console.error('Failed to award VIP referral bonus:', err);
+  }
+};
+
   const finalizeVIPUpgrade = async () => {
   const newMax = VIP_CONFIG[selectedVIP].dailyTasks;
+
+  // Award $10 + update recentReferrals for referrer
+  await handleVIPReferralBonus(user.uid, profile.phone); // pass phone so referrer sees it
+
   await updateDoc(doc(db, 'users', user.uid), {
     isVIP: true,
     tier: `${selectedVIP}VIP`,
@@ -412,6 +474,12 @@ const WithdrawPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+     if (!allRequirementsMet) {
+    setShowModal(true)
+    return;
+  }
+
     const usd = parseFloat(amount);
     if (isNaN(usd) || usd <= 0) return toast.error('Enter valid amount');
 
@@ -517,9 +585,6 @@ const WithdrawPage = () => {
   const fee = amount ? (parseFloat(amount) * FEE_PERCENTAGE) / 100 : 0;
   const receive = amount ? parseFloat(amount) - fee : 0;
 
-  // Check if all requirements are met
-  const allRequirementsMet = eligibility.kycComplete && eligibility.minAmount && eligibility.minTasks;
-
   if (!user || !profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 flex items-center justify-center">
@@ -530,6 +595,7 @@ const WithdrawPage = () => {
       </div>
     );
   }
+  
 
   return (
     <>
@@ -628,7 +694,7 @@ const WithdrawPage = () => {
               )}
 
               {/* Final Step: Celebration */}
-              {animationStep === 3 && (
+              {/* {animationStep === 3 && (
                 <div className="animate-fade-in">
                   <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
                     <Rocket className="w-12 h-12 text-white" />
@@ -654,7 +720,7 @@ const WithdrawPage = () => {
                     Start Another Task!
                   </button>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -802,108 +868,198 @@ const WithdrawPage = () => {
         </div>
       )}
 
-      {/* Eligibility Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-start mb-5">
-              <h3 className="text-xl font-bold text-slate-900">Withdrawal Requirements</h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+     {/* Enhanced Eligibility Modal – Now with 5 Requirements including Referrals */}
+{showModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div className="flex justify-between items-start mb-5">
+        <h3 className="text-xl font-bold text-slate-900">Withdrawal Requirements</h3>
+        <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 mb-5">
-              <p className="text-sm font-medium text-slate-800 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-amber-600" />
-                Withdrawal Status: Available anytime once all requirements are met
-              </p>
-            </div>
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 mb-5">
+        <p className="text-sm font-medium text-slate-800 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-amber-600" />
+          Withdrawal Status: <span className="font-bold text-amber-700">
+            {allRequirementsMet ? 'UNLOCKED' : 'Almost there!'}
+          </span>
+        </p>
+      </div>
 
-            <p className="text-sm text-slate-600 mb-4">
-              Complete these simple steps to unlock your earnings. You're making great progress!
+      <p className="text-sm text-slate-600 mb-5">
+        Complete these 5 steps to unlock instant withdrawals. You're doing amazing!
+      </p>
+
+      <div className="space-y-4">
+
+        {/* 1. Identity Verification */}
+        <div className="flex items-start gap-3">
+          {eligibility.kycComplete ? (
+            <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              Identity Verification
             </p>
-
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                {eligibility.kycComplete ? (
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4" />
-                    Identity Verification (Onboarding)
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {eligibility.kycComplete 
-                      ? "✓ Your identity has been verified" 
-                      : "Complete the onboarding task to verify your identity"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                {eligibility.minAmount ? (
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Payout Threshold
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {eligibility.minAmount
-                      ? `✓ You have the required minimum amount`
-                      : `You must have at least ${(MIN_WITHDRAWAL_USD / (1 - FEE_PERCENTAGE / 100)).toFixed(2)} to receive ${MIN_WITHDRAWAL_USD.toFixed(2)} after fees. (Current Balance: ${balance.toFixed(2)})`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                {eligibility.minTasks ? (
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">Task Completion</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {eligibility.minTasks
-                      ? `✓ You have completed the required number of tasks`
-                      : `Complete at least ${MIN_COMPLETED_TASKS} tasks to qualify. (${profile?.ApprovedTasks || 0}/${MIN_COMPLETED_TASKS})`}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
-              >
-                Close
-              </button>
-              
-              {!allRequirementsMet && (
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    setShowVIPModal(true);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold py-3 rounded-xl hover:shadow-lg transition"
-                >
-                  <Crown className="w-4 h-4 inline mr-2" />
-                  Upgrade
-                </button>
-              )}
-            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {eligibility.kycComplete 
+                ? "Verified via onboarding task" 
+                : "Complete the onboarding task to verify identity"}
+            </p>
           </div>
         </div>
-      )}
+
+        {/* 2. Payout Threshold */}
+        <div className="flex items-start gap-3">
+          {eligibility.minAmount ? (
+            <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-slate-900 flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Minimum Balance
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {eligibility.minAmount
+                ? `You have enough balance`
+                : `Need ${(MIN_WITHDRAWAL_USD / (1 - FEE_PERCENTAGE / 100)).toFixed(2)} to receive $${MIN_WITHDRAWAL_USD} after fee`}
+            </p>
+          </div>
+        </div>
+
+        {/* 3. Task Completion */}
+        <div className="flex items-start gap-3">
+          {eligibility.minTasks ? (
+            <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-slate-900">Task Completion</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {eligibility.minTasks
+                ? `You've completed ${profile?.ApprovedTasks || 0} tasks`
+                : `Complete at least ${MIN_COMPLETED_TASKS} tasks • (${profile?.ApprovedTasks || 0}/${MIN_COMPLETED_TASKS})`}
+            </p>
+            {!eligibility.minTasks && (
+              <div className="mt-2 bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="h-full bg-amber-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((profile?.ApprovedTasks || 0) / MIN_COMPLETED_TASKS) * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 4. Total Referrals */}
+        <div className="flex items-start gap-3">
+          {(profile?.totalReferrals || 0) >= 5 ? (
+            <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-600" />
+              Invite 5 Friends
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {profile?.totalReferrals >= 5
+                ? `Amazing! You invited ${profile.totalReferrals} friends`
+                : `Invite 5 friends to earn more • (${profile?.totalReferrals || 0}/5)`}
+            </p>
+            {profile?.totalReferrals < 5 && (
+              <div className="mt-2 bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="h-full bg-amber-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((profile?.totalReferrals || 0) / 5) * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 5. VIP Referrals */}
+        <div className="flex items-start gap-3">
+          {(profile?.vipReferrals || 0) >= 2 ? (
+            <Check className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+          ) : (
+            <X className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className="font-medium text-slate-900 flex items-center gap-2">
+              <Crown className="w-4 h-4 text-emerald-600" />
+              2 Friends Upgrade to VIP
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {profile?.vipReferrals >= 2
+                ? `Elite status! ${profile.vipReferrals} friends went VIP`
+                : `When 2 friends go VIP, you earn $30 bonus • (${profile?.vipReferrals || 0}/2)`}
+            </p>
+            {profile?.vipReferrals < 2 && (
+              <div className="mt-2 bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((profile?.vipReferrals || 0) / 2) * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Final CTA */}
+      <div className="mt-8 space-y-3">
+        {allRequirementsMet ? (
+          <div className="text-center bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-300 rounded-xl p-4">
+            <PartyPopper className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+            <p className="font-black text-emerald-700">All Requirements Met!</p>
+            <p className="text-sm text-emerald-600">You can now withdraw anytime</p>
+          </div>
+        ) : (
+          <p className="text-center text-sm text-slate-600 font-medium">
+            Keep going — you're <strong className="text-amber-600">
+              {Object.values(eligibility).filter(Boolean).length + 
+               (profile?.totalReferrals >= 5 ? 1 : 0) + 
+               (profile?.vipReferrals >= 2 ? 1 : 0)}/5
+            </strong> complete!
+          </p>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowModal(false)}
+            className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition"
+          >
+            Close
+          </button>
+          
+          {!allRequirementsMet && (
+            <button
+              onClick={() => {
+                setShowModal(false);
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              }}
+              className="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-bold py-3 rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Invite Friends Now
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Main UI */}
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-indigo-900 py-6 px-4">
@@ -1138,6 +1294,158 @@ const WithdrawPage = () => {
                   <li>• Available <strong>daily</strong></li>
                 </ul>
               </div>
+
+{/* Referral Earnings Card – FIXED: VIP Referrals Show Correctly + $15 */}
+<div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
+  {/* Header */}
+  <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+    <div className="flex items-center gap-3">
+      <div className="w-11 h-11 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
+        <Sparkles className="w-6 h-6 text-white" />
+      </div>
+      <div>
+        <h3 className="font-black text-lg text-slate-900">Referral Earnings</h3>
+        <p className="text-xs text-slate-500">Invite friends & earn real money</p>
+      </div>
+    </div>
+    <span className="text-3xl font-black text-amber-600">
+      ${((profile?.referralEarnings || 0)).toFixed(2)}
+    </span>
+  </div>
+
+  {/* Stats Grid */}
+  <div className="grid grid-cols-2 gap-4 mb-5">
+    <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
+      <p className="text-2xl font-black text-slate-800">
+        {profile?.totalReferrals || 0}
+      </p>
+      <p className="text-xs text-slate-600 mt-1">Total Referrals</p>
+    </div>
+    <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-200">
+      <p className="text-2xl font-black text-emerald-600">
+        {profile?.vipReferrals || 0}
+      </p>
+      <p className="text-xs text-slate-600 mt-1">VIP Referrals</p>
+    </div>
+  </div>
+
+  {/* Earnings Info */}
+  <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-5 text-center">
+    <p className="text-sm font-semibold text-amber-900">
+      Earn <span className="font-black">$5</span> per friend • 
+      <span className="font-black text-emerald-600"> $15</span> when they go VIP
+    </p>
+  </div>
+
+  {/* Recent Referrals – NOW CORRECTLY SHOWS VIP + $15 */}
+  {(profile?.recentReferrals && profile.recentReferrals.length > 0) ? (
+    <div className="space-y-2 max-h-40 overflow-y-auto mb-5">
+      {profile.recentReferrals.slice(0, 5).map((ref, i) => {
+        // CRITICAL FIX: Use ref.isVIP OR ref.vipUpgraded to detect VIP status
+        const isVIP = ref.isVIP || ref.vipUpgraded === true;
+        const reward = isVIP ? 15 : 5;
+
+        return (
+          <div 
+            key={i} 
+            className={`flex justify-between items-center rounded-lg px-4 py-3 border transition-all ${
+              isVIP 
+                ? 'bg-emerald-50 border-emerald-300 shadow-sm' 
+                : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            <div className="text-left">
+              <p className="font-semibold text-slate-800 text-sm">
+                ***{ref.phone?.slice(-4)}
+              </p>
+              <p className={`text-xs font-medium flex items-center gap-1.5 ${isVIP ? 'text-emerald-700' : 'text-slate-500'}`}>
+                {isVIP ? (
+                  <>
+                    <Crown className="w-3.5 h-3.5" /> VIP Member
+                  </>
+                ) : (
+                  'Standard User'
+                )}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className={`font-black text-lg ${isVIP ? 'text-emerald-600' : 'text-amber-600'}`}>
+                +${reward}
+              </span>
+              {isVIP && (
+                <p className="text-xs text-emerald-600 font-medium">VIP Bonus!</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
+    <div className="text-center py-8 mb-5 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+      <Sparkles className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+      <p className="text-sm font-medium text-slate-600">No referrals yet</p>
+      <p className="text-xs text-slate-400 mt-1">Invite friends and start earning!</p>
+    </div>
+  )}
+
+  {/* Share Button */}
+  <button
+    onClick={async () => {
+      const myCode = profile?.referralCode || 'LOADING';
+      const baseUrl = window.location.origin;
+      const referralLink = `${baseUrl}/signup?ref=${myCode}`;
+      const message = `Join Outlier AI and earn real money training AI!\n\nStart here: ${referralLink}\n\nI'll earn $5 when you sign up — and $15 when you go VIP!`;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Earn Money Training AI!',
+            text: 'Join me on Outlier AI!',
+            url: referralLink,
+          });
+        } catch (err) {}
+      } else {
+        const whatsapp = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const choice = window.confirm("Share your link:\n\nOK → WhatsApp\nCancel → Copy Link");
+        if (choice) {
+          window.open(whatsapp, '_blank');
+        } else {
+          navigator.clipboard.writeText(referralLink);
+          toast.success('Referral link copied!', { icon: 'Check' });
+        }
+      }
+    }}
+    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold py-3.5 rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2 text-base"
+  >
+    <Sparkles className="w-5 h-5" />
+    Invite Friends & Earn $15
+  </button>
+
+  {/* Your Personal Link */}
+  <div className="mt-4 bg-slate-50 border border-slate-300 rounded-xl p-4">
+    <p className="text-xs font-semibold text-slate-600 text-center mb-2">
+      Your Personal Link
+    </p>
+    <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-slate-200">
+      <span className="flex-1 font-mono text-xs text-slate-700 break-all select-all">
+        {window.location.origin}/signup?ref={profile?.referralCode || '...'}
+      </span>
+      <button
+        onClick={() => {
+          const link = `${window.location.origin}/signup?ref=${profile?.referralCode || ''}`;
+          navigator.clipboard.writeText(link);
+          toast.success('Copied!', { icon: 'Check', autoClose: 2000 });
+        }}
+        className="p-2.5 hover:bg-slate-100 rounded-lg transition"
+        title="Copy link"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
 
               {/* Recent Withdrawals Section */}
               <div className="bg-white p-5 rounded-2xl shadow border border-slate-200">

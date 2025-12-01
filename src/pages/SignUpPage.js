@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, increment, arrayUnion, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 // Referral code generator (unchanged – safe)
@@ -20,6 +20,8 @@ const generateReferralCode = () => {
 };
 
 function SignUpPage() {
+  const [searchParams] = useSearchParams(); // ← NEW: Read URL params
+  const referredByCode = searchParams.get('ref'); // ← Get referral code from URL
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +42,16 @@ function SignUpPage() {
     const cleaned = num.replace(/\D/g, '');
     return cleaned.length >= 10 && cleaned.length <= 15;
   };
+
+  // Show referral banner if came from a link
+  useEffect(() => {
+    if (referredByCode) {
+      toast.success(`Welcome! You're joining via a friend's invitation`, {
+        icon: 'Gift',
+        autoClose: 5000,
+      });
+    }
+  }, [referredByCode]);
 
   const handleSignUp = async (e) => {
   e.preventDefault();
@@ -93,27 +105,61 @@ function SignUpPage() {
     const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
     const user = userCredential.user;
 
-    const referralCode = generateReferralCode();
+    const myReferralCode = generateReferralCode();
 
-    await setDoc(doc(db, 'users', user.uid), {
-      userId: user.uid,
-      createdAt: serverTimestamp(),
-      email: email.trim().toLowerCase(),
-      name: name.trim(),
-      phone: phone.trim(),
-      referralCode,
-      currentbalance: 0,
-      thisMonthEarned: 0,
-      totalEarned: 0,
-      ApprovedTasks: 0,
-      hasDoneOnboardingTask: false,
-      isVIP: false,
-      tier: "standard",
-      dailyTasksRemaining: 2
-    });
+   // Create user profile
+      await setDoc(doc(db, 'users', user.uid), {
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+        email: email.trim().toLowerCase(),
+        name: name.trim(),
+        phone: phone.trim(),
+        referralCode: myReferralCode,
+        referredBy: referredByCode || null, // ← Save who referred them
+        totalReferrals: 0,
+        vipReferrals: 0,
+        referralEarnings: 0,
+        recentReferrals: [],
+        currentbalance: 0,
+        thisMonthEarned: 0,
+        totalEarned: 0,
+        ApprovedTasks: 0,
+        hasDoneOnboardingTask: false,
+        isVIP: false,
+        tier: "standard",
+        dailyTasksRemaining: 2
+      });
 
-    toast.success('Welcome to Outlier AI! Your account is ready.');
-    navigate('/dashboard');
+   // If they were referred → give $5 to referrer
+      if (referredByCode) {
+        const referrerQuery = await getDocs(
+          query(collection(db, 'users'), where('referralCode', '==', referredByCode))
+        );
+
+        if (!referrerQuery.empty) {
+          const referrerDoc = referrerQuery.docs[0];
+          const referrerRef = doc(db, 'users', referrerDoc.id);
+
+          await updateDoc(referrerRef, {
+            totalReferrals: increment(1),
+            referralEarnings: increment(5),
+            currentbalance: increment(5),  // ← THIS LINE ADDS $5 TO THEIR ACTUAL BALANCE!
+            recentReferrals: arrayUnion({
+              userId: user.uid,
+              name: name.trim(),
+              phone: phone.trim(),
+              isVIP: false,
+            referredAt: Date.now()   // ← Fixed: now works perfectly
+            })
+          });
+
+          toast.success(`$5 added to your referrer's account!`, { icon: 'Money' });
+        }
+      }
+
+      toast.success('Welcome to Outlier AI! Your account is ready.');
+      navigate('/dashboard');
+
   } catch (err) {
     console.error('Signup error:', err);
     let msg = 'Failed to create account. Please try again.';
@@ -136,6 +182,8 @@ function SignUpPage() {
     setLoading(false);
   }
 };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-12">
