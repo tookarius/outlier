@@ -157,7 +157,7 @@ function SignUpPage() {
         }
       }
 
-      toast.success('Welcome to Outlier AI! Your account is ready.');
+      toast.success('Welcome to Cirqle! Your account is ready.');
       navigate('/dashboard');
 
   } catch (err) {
@@ -192,8 +192,8 @@ function SignUpPage() {
         {/* Left Side – Hero (Compliant Version) */}
         <div className="text-white space-y-8">
           <div className="flex items-center space-x-3">
-            <div className="text-4xl font-black text-amber-400">Outlier AI</div>
-            <span className="text-sm bg-amber-400/20 px-3 py-1 rounded-full">by ComoAI Labs</span>
+            <div className="text-4xl font-black text-amber-400">Cirqle</div>
+            <span className="text-sm bg-amber-400/20 px-3 py-1 rounded-full">Online</span>
           </div>
 
           <h1 className="text-5xl font-black leading-tight">
