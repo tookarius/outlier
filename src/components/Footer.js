@@ -9,17 +9,20 @@ function Footer() {
   };
 
   return (
-    <footer className="bg-slate-900 text-white py-10 border-t border-white/10 text-sm">
-      <div className="max-w-7xl mx-auto px-4 space-y-10">
+    <footer className="bg-slate-900 text-white py-12 border-t border-white/10 text-sm">
+      <div className="max-w-7xl mx-auto px-4 space-y-12">
         {/* Top Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-amber-400">Outlier AI</span>
-              <span className="text-xs bg-amber-400/20 px-2 py-0.5 rounded-full">
-                by ComoAI Labs
-              </span>
+              <img src="/oclogo.png" alt="Cirqle Online Logo" className="w-10 h-10 object-contain" />
+              <div className="flex flex-col">
+                <span className="text-xl font-black text-amber-400">Cirqle Online</span>
+                <span className="text-xs bg-amber-400/20 px-2 py-0.5 rounded-full">
+                  powered by Outlier AI
+                </span>
+              </div>
             </div>
             <p className="text-slate-300 leading-relaxed">
               Join thousands of people worldwide contributing to AI development with flexible remote tasks.
@@ -27,7 +30,7 @@ function Footer() {
               No experience required • Weekly payments
             </p>
 
-            {/* Removed $12M+ and 4.9★ claims — replaced with safe trust signals */}
+            {/* Trust Signals */}
             <div className="flex flex-wrap gap-3 text-xs">
               <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-md">
                 <svg className="w-3.5 h-3.5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -56,11 +59,11 @@ function Footer() {
           <div>
             <h4 className="text-base font-bold mb-3 text-amber-400">Community</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><button onClick={() => scrollToSection("jobs")} className="hover:text-amber-400">Available Tasks</button></li>
-              <li><button onClick={() => scrollToSection("how")} className="hover:text-amber-400">How It Works</button></li>
-              <li><Link to="/success-stories" className="hover:text-amber-400">Member Stories</Link></li>
+              <li><button onClick={() => scrollToSection("jobs")} className="hover:text-amber-400 transition-colors">Available Tasks</button></li>
+              <li><button onClick={() => scrollToSection("how")} className="hover:text-amber-400 transition-colors">How It Works</button></li>
+              <li><Link to="/success-stories" className="hover:text-amber-400 transition-colors">Member Stories</Link></li>
               <li>
-                <a href="https://discord.gg/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">
+                <a href="https://discord.gg/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">
                   Join Discord
                 </a>
               </li>
@@ -71,10 +74,10 @@ function Footer() {
           <div>
             <h4 className="text-base font-bold mb-3 text-amber-400">Resources</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><Link to="/training-center" className="hover:text-amber-400">Training Center</Link></li>
-              <li><Link to="/blog" className="hover:text-amber-400">Blog</Link></li>
-              <li><Link to="/payment-proof" className="hover:text-amber-400">Payment Examples</Link></li>
-              <li><Link to="/faq" className="hover:text-amber-400">FAQ</Link></li>
+              <li><Link to="/training-center" className="hover:text-amber-400 transition-colors">Training Center</Link></li>
+              <li><Link to="/blog" className="hover:text-amber-400 transition-colors">Blog</Link></li>
+              <li><Link to="/payment-proof" className="hover:text-amber-400 transition-colors">Payment Examples</Link></li>
+              <li><Link to="/faq" className="hover:text-amber-400 transition-colors">FAQ</Link></li>
             </ul>
           </div>
 
@@ -82,21 +85,21 @@ function Footer() {
           <div>
             <h4 className="text-base font-bold mb-3 text-amber-400">Support</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><a href="mailto:support@outlierai.com" className="hover:text-amber-400">support@outlierai.com</a></li>
-              <li><Link to="/contact" className="hover:text-amber-400">Contact Us</Link></li>
-              <li><Link to="/terms" className="hover:text-amber-400">Terms of Service</Link></li>
-              <li><Link to="/privacy" className="hover:text-amber-400">Privacy Policy</Link></li>
+              <li><a href="mailto:support@outlierai.com" className="hover:text-amber-400 transition-colors">support@outlierai.com</a></li>
+              <li><Link to="/contact" className="hover:text-amber-400 transition-colors">Contact Us</Link></li>
+              <li><Link to="/terms" className="hover:text-amber-400 transition-colors">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-amber-400 transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
-          <p>© 2025 Outlier AI by ComoAI Labs. All rights reserved.</p>
+          <p>© 2026 Cirqle Online. All rights reserved.</p>
           <div className="flex gap-4 mt-3 md:mt-0">
-            <a href="https://twitter.com/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">Twitter</a>
-            <a href="https://linkedin.com/company/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">LinkedIn</a>
-            <a href="https://youtube.com/@outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400">YouTube</a>
+            <a href="https://twitter.com/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">Twitter</a>
+            <a href="https://linkedin.com/company/outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">LinkedIn</a>
+            <a href="https://youtube.com/@outlierai" target="_blank" rel="noreferrer" className="hover:text-amber-400 transition-colors">YouTube</a>
           </div>
         </div>
       </div>
