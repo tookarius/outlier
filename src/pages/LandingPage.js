@@ -80,7 +80,7 @@ function LandingPage() {
           <Link to="/" className="text-2xl font-bold flex items-center gap-2">
             Cirqle<span className="text-amber-400">Online</span>
             <span className="hidden sm:inline text-xs bg-amber-400/20 px-2 py-1 rounded-full">
-              online
+              by Outlier
             </span>
           </Link>
 
