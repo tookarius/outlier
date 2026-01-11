@@ -26,8 +26,8 @@ import { useAuth } from '../context/AuthContext';
 
 class ExchangeRateSimulator {
   constructor() {
-    this.targetRate = 125.00;
-    this.currentRate = 125.00;
+    this.targetRate = 140.00;
+    this.currentRate = 120.00;
     this.lastUpdate = Date.now();
     this.dailyBias = (Math.random() - 0.5) * 0.3;
     this.updateCounter = 0;
