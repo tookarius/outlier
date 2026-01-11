@@ -7,13 +7,13 @@ import { getStorage } from 'firebase/storage';
 
 // Your AI-TRAINING-TASKS DB
  const firebaseConfig = {
- apiKey: "AIzaSyAp5CrpSIbVL3AFl-cfBHBBDE8xpDwvbTA",
-   authDomain: "ai-training-tasks.firebaseapp.com",
-   projectId: "ai-training-tasks",
-   storageBucket: "ai-training-tasks.firebasestorage.app",
-   messagingSenderId: "635815062881",
-   appId: "1:635815062881:web:3e0463099cda2b712fa920",
-   measurementId: "G-Q8QG41159X"
+ apiKey: "AIzaSyB5pnaqoqeiyWTmjq5EYb7Rh8EoNJplCuI",
+  authDomain: "outleir-a9ab1.firebaseapp.com",
+  projectId: "outleir-a9ab1",
+  storageBucket: "outleir-a9ab1.firebasestorage.app",
+  messagingSenderId: "1091033714142",
+  appId: "1:1091033714142:web:191a2cda8566a175fe614f",
+  measurementId: "G-BMMVVHBDS2"
  };
 
 
