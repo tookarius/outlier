@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -49,6 +50,21 @@ function SignInPage() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+    const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first.');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setError('Password reset email sent. Check your inbox.');
+    } catch (err) {
+      console.error('Password reset error:', err);
+      setError('Failed to send password reset email.');
     }
   };
 
@@ -154,9 +170,7 @@ function SignInPage() {
                   <input type="checkbox" className="w-4 h-4 text-amber-500 rounded focus:ring-amber-400" />
                   <span className="text-gray-600">Remember me</span>
                 </label>
-                <a href="/forgot-password" className="text-amber-600 hover:underline font-medium">
-                  Forgot password?
-                </a>
+            <button type="button" onClick={handleForgotPassword} className="text-amber-600 hover:underline font-medium">Forgot password?</button>
               </div>
 
               <button
